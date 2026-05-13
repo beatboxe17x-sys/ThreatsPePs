@@ -43,19 +43,25 @@ function AppContent() {
   }, [pathname]);
 
   // Listen for order status changes via Firebase and show toast notifications
-  // Subscribes to individual order docs by ID — 100% reliable, no indexes needed
+  // Dynamically subscribes to order docs by ID — works for new orders too
+  const activeSubs = useRef<Record<string, () => void>>({});
+
   useEffect(() => {
+    if (!db) return;
     const database = db;
-    if (!database) return;
 
-    // Get order IDs from localStorage (just IDs, tiny data)
-    const orderIds: string[] = JSON.parse(localStorage.getItem('ng_order_ids') || '[]');
-    if (orderIds.length === 0) return;
+    const statusLabels: Record<string, string> = {
+      processing: 'Awaiting Verification',
+      confirmed: 'Confirmed - Preparing Order',
+      shipped: 'Shipped - On the Way',
+      delivered: 'Delivered',
+      cancelled: 'Order Cancelled',
+    };
 
-    console.log('[Toast] Subscribing to', orderIds.length, 'order docs:', orderIds);
+    function subscribeToOrder(orderId: string) {
+      if (activeSubs.current[orderId]) return; // already subscribed
 
-    const unsubscribes = orderIds.slice(0, 20).map(orderId => {
-      return onSnapshot(
+      const unsub = onSnapshot(
         doc(database, 'orders', orderId),
         snap => {
           if (!snap.exists()) return;
@@ -63,38 +69,41 @@ function AppContent() {
           const newStatus = data.status as string;
           const oldStatus = prevStatuses.current[orderId];
 
-          // First time seeing this order — just record status, no toast
           if (!oldStatus) {
             prevStatuses.current[orderId] = newStatus;
-            console.log(`[Toast] Initial status for ${orderId}: ${newStatus}`);
+            console.log(`[Toast] Tracked ${orderId}: ${newStatus}`);
             return;
           }
 
-          // Status changed — show toast
           if (oldStatus !== newStatus) {
-            const statusLabels: Record<string, string> = {
-              processing: 'Awaiting Verification',
-              confirmed: 'Confirmed - Preparing Order',
-              shipped: 'Shipped - On the Way',
-              delivered: 'Delivered',
-              cancelled: 'Order Cancelled',
-            };
             const label = statusLabels[newStatus] || newStatus;
-            console.log(`[Toast] Status changed for ${orderId}: ${oldStatus} → ${newStatus}`);
+            console.log(`[Toast] ${orderId}: ${oldStatus} → ${newStatus}`);
             showToast(`Order ${orderId} updated: ${label}`, '\uD83D\uDCE6');
           }
-
           prevStatuses.current[orderId] = newStatus;
         },
-        err => {
-          console.error(`[Toast] Subscription error for ${orderId}:`, err.message);
-        }
+        err => console.error(`[Toast] ${orderId} error:`, err.message)
       );
-    });
+
+      activeSubs.current[orderId] = unsub;
+    }
+
+    function checkForNewOrders() {
+      const newIds: string[] = JSON.parse(localStorage.getItem('ng_order_ids') || '[]');
+      const oldIds: string[] = JSON.parse(localStorage.getItem('ng_my_orders') || '[]');
+      const allIds = [...new Set([...newIds, ...oldIds])];
+
+      allIds.slice(0, 20).forEach(id => subscribeToOrder(id));
+    }
+
+    // Check immediately and every 3 seconds for new orders
+    checkForNewOrders();
+    const interval = setInterval(checkForNewOrders, 3000);
 
     return () => {
-      console.log('[Toast] Unsubscribing from', unsubscribes.length, 'orders');
-      unsubscribes.forEach(fn => fn());
+      clearInterval(interval);
+      Object.values(activeSubs.current).forEach(fn => fn());
+      activeSubs.current = {};
     };
   }, [showToast]);
 
