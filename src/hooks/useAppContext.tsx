@@ -233,6 +233,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     const orderWithDevice = { ...order, deviceId };
     setOrders(prev => [orderWithDevice, ...prev]);
+    // Save order ID for toast notifications (just IDs, tiny data)
+    const orderIds: string[] = JSON.parse(localStorage.getItem('ng_order_ids') || '[]');
+    if (!orderIds.includes(order.id)) {
+      orderIds.unshift(order.id);
+      localStorage.setItem('ng_order_ids', JSON.stringify(orderIds.slice(0, 50)));
+    }
     try { await saveOrderToFirestore(orderWithDevice); } catch (_) {}
   }, []);
 

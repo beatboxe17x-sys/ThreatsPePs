@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from '@/hooks/useAppContext';
 import { startVisitorSession, trackPageView } from '@/firebase/visitor';
-import { subscribeToOrdersByDeviceId } from '@/firebase/services';
-import type { Order } from '@/firebase/services';
+import { db } from '@/firebase/config';
+import { doc, onSnapshot } from 'firebase/firestore';
 import Navbar from '@/components/Navbar';
 import CartSidebar from '@/components/CartSidebar';
 import CheckoutModal from '@/components/CheckoutModal';
@@ -43,54 +43,58 @@ function AppContent() {
   }, [pathname]);
 
   // Listen for order status changes via Firebase and show toast notifications
-  const [myOrders, setMyOrders] = useState<Order[]>([]);
-
+  // Subscribes to individual order docs by ID — 100% reliable, no indexes needed
   useEffect(() => {
-    const deviceId = localStorage.getItem('ng_device_id');
-    if (!deviceId) {
-      console.log('[Toast] No deviceId yet — skipping subscription');
-      return;
-    }
+    const database = db;
+    if (!database) return;
 
-    console.log('[Toast] Subscribing to orders for device:', deviceId);
+    // Get order IDs from localStorage (just IDs, tiny data)
+    const orderIds: string[] = JSON.parse(localStorage.getItem('ng_order_ids') || '[]');
+    if (orderIds.length === 0) return;
 
-    const unsub = subscribeToOrdersByDeviceId(deviceId, orders => {
-      console.log('[Toast] Received', orders.length, 'orders from Firebase');
-      setMyOrders(orders);
+    console.log('[Toast] Subscribing to', orderIds.length, 'order docs:', orderIds);
 
-      // Check each order for status changes
-      let toastShown = false;
-      orders.forEach(o => {
-        const newStatus = o.status;
-        const oldStatus = prevStatuses.current[o.id];
+    const unsubscribes = orderIds.slice(0, 20).map(orderId => {
+      return onSnapshot(
+        doc(database, 'orders', orderId),
+        snap => {
+          if (!snap.exists()) return;
+          const data = snap.data();
+          const newStatus = data.status as string;
+          const oldStatus = prevStatuses.current[orderId];
 
-        // Only show toast if we have a previous status and it changed
-        if (oldStatus && oldStatus !== newStatus) {
-          const statusLabels: Record<string, string> = {
-            processing: 'Awaiting Verification',
-            confirmed: 'Confirmed - Preparing Order',
-            shipped: 'Shipped - On the Way',
-            delivered: 'Delivered',
-            cancelled: 'Cancelled',
-          };
-          const label = statusLabels[newStatus] || newStatus;
-          console.log(`[Toast] Status changed for ${o.id}: ${oldStatus} → ${newStatus}`);
-          showToast(`Order ${o.id} updated: ${label}`, '\uD83D\uDCE6');
-          toastShown = true;
+          // First time seeing this order — just record status, no toast
+          if (!oldStatus) {
+            prevStatuses.current[orderId] = newStatus;
+            console.log(`[Toast] Initial status for ${orderId}: ${newStatus}`);
+            return;
+          }
+
+          // Status changed — show toast
+          if (oldStatus !== newStatus) {
+            const statusLabels: Record<string, string> = {
+              processing: 'Awaiting Verification',
+              confirmed: 'Confirmed - Preparing Order',
+              shipped: 'Shipped - On the Way',
+              delivered: 'Delivered',
+              cancelled: 'Order Cancelled',
+            };
+            const label = statusLabels[newStatus] || newStatus;
+            console.log(`[Toast] Status changed for ${orderId}: ${oldStatus} → ${newStatus}`);
+            showToast(`Order ${orderId} updated: ${label}`, '\uD83D\uDCE6');
+          }
+
+          prevStatuses.current[orderId] = newStatus;
+        },
+        err => {
+          console.error(`[Toast] Subscription error for ${orderId}:`, err.message);
         }
-
-        // Always update the tracked status
-        prevStatuses.current[o.id] = newStatus;
-      });
-
-      if (!toastShown && orders.length > 0) {
-        console.log('[Toast] No status changes detected this update');
-      }
+      );
     });
 
     return () => {
-      console.log('[Toast] Unsubscribing from orders');
-      unsub();
+      console.log('[Toast] Unsubscribing from', unsubscribes.length, 'orders');
+      unsubscribes.forEach(fn => fn());
     };
   }, [showToast]);
 
