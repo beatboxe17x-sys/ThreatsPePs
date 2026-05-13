@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '@/hooks/useAppContext';
-import { X, Download, Upload, Save, Users, CheckCircle2, ClipboardList, Package, Copy, CircleDollarSign, Clock, ChevronDown, MapPin, Mail, MessageCircle, Settings, Check, Eye, Bell, ExternalLink } from 'lucide-react';
+import { X, Download, Upload, Save, Users, CheckCircle2, ClipboardList, Package, Copy, CircleDollarSign, Clock, ChevronDown, MapPin, Mail, MessageCircle, Settings, Check, Eye, Bell, ExternalLink, Trash2, Shield, ToggleLeft, ToggleRight } from 'lucide-react';
 import { notifyOrderStatusUpdate, notifyNewOrder, getWebhookUrl, setWebhookUrl, loadWebhookUrl, hasWebhook } from '@/discord/webhook';
 import { subscribeToWebhookUrl } from '@/firebase/webhookSettings';
 import LiveVisitors from './LiveVisitors';
 import type { Crypto, Product } from '@/types';
 import { CRYPTO_NAMES, CRYPTO_SYMBOLS } from '@/types';
 
-type AdminTab = 'products' | 'crypto' | 'logs' | 'orders' | 'discord' | 'visitors';
+type AdminTab = 'products' | 'crypto' | 'logs' | 'orders' | 'users' | 'discord' | 'visitors';
 
 export default function AdminPanel() {
   const {
@@ -234,6 +234,7 @@ export default function AdminPanel() {
             <button onClick={() => setTab('crypto')} className="cursor-pointer border-none bg-transparent pb-3 transition-all duration-300" style={{ color: tab === 'crypto' ? 'var(--accent)' : 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, borderBottom: tab === 'crypto' ? '2px solid var(--accent)' : '2px solid transparent' }}>Crypto Addresses</button>
             <button onClick={() => setTab('logs')} className="cursor-pointer border-none bg-transparent pb-3 transition-all duration-300" style={{ color: tab === 'logs' ? 'var(--accent)' : 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, borderBottom: tab === 'logs' ? '2px solid var(--accent)' : '2px solid transparent' }}>Customer Logs</button>
             <button onClick={() => setTab('orders')} className="cursor-pointer border-none bg-transparent pb-3 transition-all duration-300" style={{ color: tab === 'orders' ? 'var(--accent)' : 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, borderBottom: tab === 'orders' ? '2px solid var(--accent)' : '2px solid transparent' }}>Orders</button>
+            <button onClick={() => setTab('users')} className="cursor-pointer border-none bg-transparent pb-3 transition-all duration-300 flex items-center gap-1" style={{ color: tab === 'users' ? 'var(--accent)' : 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, borderBottom: tab === 'users' ? '2px solid var(--accent)' : '2px solid transparent' }}><Users size={14} /> Users</button>
             <button onClick={() => setTab('visitors')} className="cursor-pointer border-none bg-transparent pb-3 transition-all duration-300 flex items-center gap-1" style={{ color: tab === 'visitors' ? '#22c55e' : 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, borderBottom: tab === 'visitors' ? '2px solid #22c55e' : '2px solid transparent' }}><Eye size={14} /> Visitors</button>
             <button onClick={() => setTab('discord')} className="cursor-pointer border-none bg-transparent pb-3 transition-all duration-300 flex items-center gap-1" style={{ color: tab === 'discord' ? '#5865F2' : 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, borderBottom: tab === 'discord' ? '2px solid #5865F2' : '2px solid transparent' }}><MessageCircle size={14} /> Discord</button>
           </div>
@@ -328,6 +329,9 @@ export default function AdminPanel() {
 
           {/* Live Visitors Tab */}
           {tab === 'visitors' && <LiveVisitors />}
+
+          {/* Users Tab */}
+          {tab === 'users' && <UsersTab showToast={showToast} />}
 
           {/* Discord Settings Tab */}
           {tab === 'discord' && <DiscordSettingsTab showToast={showToast} />}
@@ -673,6 +677,180 @@ function CustomerLogsTab({
   );
 }
 
+
+/* Users sub-component */
+function UsersTab({ showToast }: { showToast: (message: string, icon?: string) => void }) {
+  const [users, setUsers] = useState<import('@/firebase/userAuth').UserProfile[]>([]);
+  const [userOrders, setUserOrders] = useState<Record<string, any[]>>({});
+  const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [requireLogin, setRequireLogin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadUsers();
+    loadSettings();
+  }, []);
+
+  const loadUsers = async () => {
+    const { listAllUsers } = await import('@/firebase/userAuth');
+    const data = await listAllUsers();
+    setUsers(data);
+    setLoading(false);
+
+    // Load orders for each user
+    const { getUserOrders } = await import('@/firebase/userAuth');
+    const ordersMap: Record<string, any[]> = {};
+    for (const u of data) {
+      ordersMap[u.uid] = await getUserOrders(u.uid);
+    }
+    setUserOrders(ordersMap);
+  };
+
+  const loadSettings = async () => {
+    const { getShopSettings } = await import('@/firebase/userAuth');
+    const settings = await getShopSettings();
+    setRequireLogin(!!settings.requireLogin);
+  };
+
+  const handleDeleteUser = async (uid: string) => {
+    if (!confirm('Delete this user permanently?')) return;
+    const { deleteUserAccount } = await import('@/firebase/userAuth');
+    const ok = await deleteUserAccount(uid);
+    if (ok) {
+      setUsers(prev => prev.filter(u => u.uid !== uid));
+      showToast('User deleted', '\u2705');
+    } else {
+      showToast('Failed to delete user', '\u274C');
+    }
+  };
+
+  const toggleRequireLogin = async () => {
+    const newVal = !requireLogin;
+    setRequireLogin(newVal);
+    const { setShopSettings } = await import('@/firebase/userAuth');
+    await setShopSettings({ requireLogin: newVal });
+    showToast(newVal ? 'Login required for orders' : 'Guest checkout enabled', '\u2705');
+  };
+
+  return (
+    <div>
+      {/* Shop Settings */}
+      <div className="mb-6 p-4" style={{ background: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Shield size={18} style={{ color: 'var(--accent)' }} />
+            <div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>Require Account for Orders</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>When enabled, customers must register/login before checking out</div>
+            </div>
+          </div>
+          <button
+            onClick={toggleRequireLogin}
+            className="cursor-pointer border-none bg-transparent"
+          >
+            {requireLogin ? (
+              <ToggleRight size={32} style={{ color: 'var(--success)' }} />
+            ) : (
+              <ToggleLeft size={32} style={{ color: 'var(--text-muted)' }} />
+            )}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+            <Users size={16} style={{ display: 'inline', marginRight: '8px', color: 'var(--accent)' }} />
+            Registered Users
+          </h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+            {users.length} user{users.length !== 1 ? 's' : ''} registered
+          </p>
+        </div>
+        <button onClick={loadUsers} className="cursor-pointer flex items-center gap-1" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', padding: '8px 14px', borderRadius: '8px', fontSize: '0.8rem' }}>
+          <Clock size={14} /> Refresh
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading users...</div>
+      ) : users.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+          <Users size={40} style={{ marginBottom: '12px', opacity: 0.5 }} />
+          <p>No registered users yet.</p>
+        </div>
+      ) : (
+        <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
+          {users.map(user => {
+            const isExpanded = expandedUser === user.uid;
+            const orders = userOrders[user.uid] || [];
+            return (
+              <div key={user.uid} style={{ background: 'var(--bg)', borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', border: '1px solid var(--border)' }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: '1rem', flexShrink: 0 }}>
+                      {user.displayName?.charAt(0)?.toUpperCase() || 'U'}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{user.displayName}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{user.email}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'var(--bg-card)', padding: '4px 10px', borderRadius: '20px' }}>
+                      {orders.length} order{orders.length !== 1 ? 's' : ''}
+                    </span>
+                    <button
+                      onClick={() => setExpandedUser(isExpanded ? null : user.uid)}
+                      className="cursor-pointer border-none bg-transparent"
+                      style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}
+                    >
+                      {isExpanded ? 'Hide' : 'View'}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteUser(user.uid)}
+                      className="cursor-pointer border-none bg-transparent transition-all duration-200"
+                      style={{ color: '#ef4444', padding: '6px' }}
+                      title="Delete user"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                {isExpanded && (
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+                    {orders.length === 0 ? (
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No orders placed</p>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {orders.map((order: any) => (
+                          <div key={order.id} className="flex items-center justify-between p-2" style={{ background: 'var(--bg-card)', borderRadius: '8px', fontSize: '0.75rem' }}>
+                            <div className="flex items-center gap-2">
+                              <Package size={12} style={{ color: 'var(--accent)' }} />
+                              <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{order.id}</span>
+                              <span style={{ color: 'var(--text-muted)' }}>{order.items?.length || 0} items</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span style={{ fontWeight: 700, color: 'var(--accent)' }}>${(order.total || 0).toFixed(2)}</span>
+                              <span style={{ color: order.status === 'processing' ? '#f59e0b' : order.status === 'delivered' ? '#22c55e' : 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                                {order.status}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* Discord Settings sub-component */
 function DiscordSettingsTab({ showToast }: { showToast: (message: string, icon?: string) => void }) {

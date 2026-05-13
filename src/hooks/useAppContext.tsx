@@ -52,6 +52,7 @@ interface AppContextType {
   markPromoUsed: () => void;
   getDiscountedTotal: (subtotal: number) => number;
   getDiscountAmount: (subtotal: number) => number;
+  requireLogin: boolean;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -78,6 +79,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
   const [selectedCrypto, setSelectedCrypto] = useState<Crypto>('btc');
   const [toast, setToast] = useState<ToastState>({ message: '', icon: '\u2705', visible: false });
+  const [requireLogin, setRequireLogin] = useState(false);
+
+  // Load shop settings
+  useEffect(() => {
+    import('@/firebase/userAuth').then(({ getShopSettings }) => {
+      getShopSettings().then(s => setRequireLogin(!!s.requireLogin));
+    }).catch(() => {});
+  }, []);
 
   const ordersUnsub = useRef<(() => void) | null>(null);
   const consentsUnsub = useRef<(() => void) | null>(null);
@@ -289,6 +298,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         markPromoUsed: promoHook.markPromoUsed,
         getDiscountedTotal: promoHook.getDiscountedTotal,
         getDiscountAmount: promoHook.getDiscountAmount,
+        requireLogin,
       }}
     >
       {children}

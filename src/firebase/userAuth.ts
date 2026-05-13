@@ -1,7 +1,7 @@
 import { db } from './config';
 import {
-  collection, doc, setDoc, getDoc, getDocs, query, where, updateDoc,
-  Timestamp, type Firestore,
+  doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc,
+  collection, query, where, onSnapshot, Timestamp, type Firestore,
 } from 'firebase/firestore';
 
 const USERS_COLLECTION = 'users';
@@ -11,15 +11,6 @@ export interface UserProfile {
   email: string;
   displayName: string;
   passwordHash: string;
-  shippingAddresses: {
-    name: string;
-    email: string;
-    address: string;
-    city: string;
-    zip: string;
-    country: string;
-    isDefault: boolean;
-  }[];
   createdAt: Timestamp;
   lastLogin: Timestamp;
 }
@@ -28,7 +19,13 @@ function getDb(): Firestore | null {
   return db;
 }
 
-// Simple hash function (crypto-like but works in browser)
+// Deterministic ID from email — no queries needed
+function emailToDocId(email: string): string {
+  // Replace @ and . with safe chars, lowercase
+  return 'u_' + email.toLowerCase().replace(/[@.]/g, '_');
+}
+
+// Simple hash (works in browser)
 async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(password + 'ng-research-salt-2024');
@@ -37,118 +34,104 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  const computed = await hashPassword(password);
-  return computed === hash;
-}
-
-function generateUid(): string {
-  return 'usr_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-}
-
-// JWT-like session token
-function createSessionToken(uid: string): string {
-  const payload = { uid, exp: Date.now() + 30 * 24 * 60 * 60 * 1000 }; // 30 days
+function createSessionToken(docId: string): string {
+  const payload = { id: docId, exp: Date.now() + 30 * 24 * 60 * 60 * 1000 };
   return btoa(JSON.stringify(payload));
 }
 
-export function parseSessionToken(token: string): { uid: string } | null {
+function parseToken(token: string): { id: string } | null {
   try {
-    const payload = JSON.parse(atob(token));
-    if (payload.exp && payload.exp < Date.now()) return null; // expired
-    return { uid: payload.uid };
-  } catch {
-    return null;
-  }
+    const p = JSON.parse(atob(token));
+    if (p.exp && p.exp < Date.now()) return null;
+    return { id: p.id };
+  } catch { return null; }
 }
 
-// Register new user
 export async function registerUser(
-  email: string,
-  password: string,
-  displayName: string
+  email: string, password: string, displayName: string
 ): Promise<{ success: true; user: UserProfile; token: string } | { success: false; error: string }> {
   const database = getDb();
   if (!database) return { success: false, error: 'Database unavailable' };
 
   try {
-    // Check if email already exists
-    const q = query(collection(database, USERS_COLLECTION), where('email', '==', email.toLowerCase()));
-    const existing = await getDocs(q);
-    if (!existing.empty) {
+    const docId = emailToDocId(email);
+    const userRef = doc(database, USERS_COLLECTION, docId);
+
+    // Check if already exists — single doc read, no query needed
+    const existing = await getDoc(userRef);
+    if (existing.exists()) {
       return { success: false, error: 'An account with this email already exists' };
     }
 
-    const uid = generateUid();
     const passwordHash = await hashPassword(password);
     const now = Timestamp.now();
-
     const user: UserProfile = {
-      uid,
+      uid: docId,
       email: email.toLowerCase(),
       displayName,
       passwordHash,
-      shippingAddresses: [],
       createdAt: now,
       lastLogin: now,
     };
 
-    await setDoc(doc(database, USERS_COLLECTION, uid), user);
+    await setDoc(userRef, user);
 
-    const token = createSessionToken(uid);
+    const token = createSessionToken(docId);
     localStorage.setItem('ng_auth_token', token);
-    localStorage.setItem('ng_user_id', uid);
+    localStorage.setItem('ng_user_id', docId);
 
     return { success: true, user, token };
-  } catch (err) {
+  } catch (err: any) {
     console.error('[registerUser] Error:', err);
+    // Check for permission denied
+    if (err?.code === 'permission-denied') {
+      return { success: false, error: 'Permission denied. Check Firestore rules.' };
+    }
     return { success: false, error: 'Registration failed. Please try again.' };
   }
 }
 
-// Login
 export async function loginUser(
-  email: string,
-  password: string
+  email: string, password: string
 ): Promise<{ success: true; user: UserProfile; token: string } | { success: false; error: string }> {
   const database = getDb();
   if (!database) return { success: false, error: 'Database unavailable' };
 
   try {
-    const q = query(collection(database, USERS_COLLECTION), where('email', '==', email.toLowerCase()));
-    const snap = await getDocs(q);
-    if (snap.empty) {
+    const docId = emailToDocId(email);
+    const snap = await getDoc(doc(database, USERS_COLLECTION, docId));
+
+    if (!snap.exists()) {
       return { success: false, error: 'Invalid email or password' };
     }
 
-    const userDoc = snap.docs[0];
-    const user = { ...userDoc.data(), uid: userDoc.id } as UserProfile;
-
-    const valid = await verifyPassword(password, user.passwordHash);
+    const user = { ...snap.data(), uid: snap.id } as UserProfile;
+    const valid = await hashPassword(password) === user.passwordHash;
     if (!valid) {
       return { success: false, error: 'Invalid email or password' };
     }
 
-    // Update last login
-    await updateDoc(doc(database, USERS_COLLECTION, user.uid), { lastLogin: Timestamp.now() });
+    await updateDoc(doc(database, USERS_COLLECTION, docId), { lastLogin: Timestamp.now() });
 
-    const token = createSessionToken(user.uid);
+    const token = createSessionToken(docId);
     localStorage.setItem('ng_auth_token', token);
-    localStorage.setItem('ng_user_id', user.uid);
+    localStorage.setItem('ng_user_id', docId);
 
     return { success: true, user, token };
-  } catch (err) {
+  } catch (err: any) {
     console.error('[loginUser] Error:', err);
+    if (err?.code === 'permission-denied') {
+      return { success: false, error: 'Permission denied. Check Firestore rules.' };
+    }
     return { success: false, error: 'Login failed. Please try again.' };
   }
 }
 
-// Get current user from session
 export async function getCurrentUser(): Promise<UserProfile | null> {
   const token = localStorage.getItem('ng_auth_token');
   if (!token) return null;
 
-  const payload = parseSessionToken(token);
+  const payload = parseToken(token);
   if (!payload) {
     localStorage.removeItem('ng_auth_token');
     localStorage.removeItem('ng_user_id');
@@ -159,7 +142,7 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
   if (!database) return null;
 
   try {
-    const snap = await getDoc(doc(database, USERS_COLLECTION, payload.uid));
+    const snap = await getDoc(doc(database, USERS_COLLECTION, payload.id));
     if (!snap.exists()) return null;
     return { ...snap.data(), uid: snap.id } as UserProfile;
   } catch {
@@ -167,28 +150,11 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
   }
 }
 
-// Logout
 export function logoutUser() {
   localStorage.removeItem('ng_auth_token');
   localStorage.removeItem('ng_user_id');
 }
 
-// Update user profile
-export async function updateUserProfile(
-  uid: string,
-  updates: Partial<Pick<UserProfile, 'displayName' | 'shippingAddresses'>>
-): Promise<boolean> {
-  const database = getDb();
-  if (!database) return false;
-  try {
-    await updateDoc(doc(database, USERS_COLLECTION, uid), updates);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// Get user's orders from Firestore
 export async function getUserOrders(userId: string) {
   const database = getDb();
   if (!database) return [];
@@ -199,4 +165,59 @@ export async function getUserOrders(userId: string) {
   } catch {
     return [];
   }
+}
+
+// List all registered users (admin only)
+export async function listAllUsers(): Promise<UserProfile[]> {
+  const database = getDb();
+  if (!database) return [];
+  try {
+    const snap = await getDocs(collection(database, USERS_COLLECTION));
+    return snap.docs.map(d => ({ ...d.data(), uid: d.id } as UserProfile));
+  } catch {
+    return [];
+  }
+}
+
+// Delete a user and their data
+export async function deleteUserAccount(uid: string): Promise<boolean> {
+  const database = getDb();
+  if (!database) return false;
+  try {
+    await deleteDoc(doc(database, USERS_COLLECTION, uid));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Shop settings
+export async function getShopSettings(): Promise<{ requireLogin?: boolean }> {
+  const database = getDb();
+  if (!database) return {};
+  try {
+    const snap = await getDoc(doc(database, 'settings', 'shop'));
+    return snap.exists() ? (snap.data() as { requireLogin?: boolean }) : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function setShopSettings(settings: { requireLogin?: boolean }): Promise<boolean> {
+  const database = getDb();
+  if (!database) return false;
+  try {
+    await setDoc(doc(database, 'settings', 'shop'), settings, { merge: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function subscribeToShopSettings(callback: (settings: { requireLogin?: boolean }) => void) {
+  const database = getDb();
+  if (!database) return () => {};
+  return onSnapshot(doc(database, 'settings', 'shop'), snap => {
+    callback(snap.exists() ? (snap.data() as { requireLogin?: boolean }) : {});
+  });
 }

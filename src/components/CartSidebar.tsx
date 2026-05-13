@@ -1,15 +1,28 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/hooks/useAppContext';
-import { X, Minus, Plus, Tag, Check, AlertCircle } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { X, Minus, Plus, Tag, Check, AlertCircle, LogIn } from 'lucide-react';
 
 export default function CartSidebar() {
-  const { cart, products, isCartOpen, closeCart, openCheckout, removeFromCart, updateQty, promo, applyPromoCode, removePromo, getDiscountedTotal, getDiscountAmount } = useApp();
+  const { cart, products, isCartOpen, closeCart, openCheckout, removeFromCart, updateQty, promo, applyPromoCode, removePromo, getDiscountedTotal, getDiscountAmount, requireLogin } = useApp();
+  const { isLoggedIn } = useAuth();
+  const navigate = useNavigate();
   const [promoInput, setPromoInput] = useState('');
   const [promoSuccess, setPromoSuccess] = useState(false);
 
   const subtotal = cart.reduce((sum, item) => sum + (products[item.id]?.price || 0) * item.qty, 0);
   const totalPrice = getDiscountedTotal(subtotal);
   const discountAmount = getDiscountAmount(subtotal);
+
+  const handleCheckout = () => {
+    if (requireLogin && !isLoggedIn) {
+      closeCart();
+      navigate('/login');
+      return;
+    }
+    openCheckout();
+  };
 
   return (
     <>
@@ -160,7 +173,7 @@ export default function CartSidebar() {
               <span style={{ color: promo.applied ? 'var(--success)' : 'var(--accent)' }}>${totalPrice.toFixed(2)}</span>
             </div>
             <button
-              onClick={openCheckout}
+              onClick={handleCheckout}
               className="w-full cursor-pointer border-none transition-all duration-300"
               style={{ background: 'var(--accent)', color: '#fff', padding: '16px', borderRadius: '12px', fontWeight: 700, fontSize: '1rem' }}
               onMouseEnter={e => {
@@ -172,8 +185,11 @@ export default function CartSidebar() {
                 e.currentTarget.style.boxShadow = 'none';
               }}
             >
-              Checkout with Crypto
-              <span style={{ marginLeft: '8px' }}>→</span>
+              {requireLogin && !isLoggedIn ? (
+                <><LogIn size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} /> Sign In to Checkout</>
+              ) : (
+                <>Checkout with Crypto<span style={{ marginLeft: '8px' }}>→</span></>
+              )}
             </button>
           </div>
         )}
