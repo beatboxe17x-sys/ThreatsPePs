@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '@/hooks/useAppContext';
-import { X, Download, Upload, Save, Users, CheckCircle2, ClipboardList, Package, Copy, CircleDollarSign, Clock, ChevronDown, MapPin, Mail, MessageCircle, Settings, Check, Eye, Bell, ExternalLink, Trash2, Shield, ToggleLeft, ToggleRight } from 'lucide-react';
+import { X, Download, Upload, Save, Users, CheckCircle2, ClipboardList, Package, Copy, CircleDollarSign, Clock, ChevronDown, MapPin, Mail, MessageCircle, Settings, Check, Eye, Bell, ExternalLink, Trash2, Shield, ToggleLeft, ToggleRight, BarChart3 } from 'lucide-react';
 import { notifyOrderStatusUpdate, notifyNewOrder, getWebhookUrl, setWebhookUrl, loadWebhookUrl, hasWebhook } from '@/discord/webhook';
+import AnalyticsDashboard from './AnalyticsDashboard';
 import { subscribeToWebhookUrl } from '@/firebase/webhookSettings';
 import LiveVisitors from './LiveVisitors';
 import type { Crypto, Product } from '@/types';
 import { CRYPTO_NAMES, CRYPTO_SYMBOLS } from '@/types';
 
-type AdminTab = 'products' | 'crypto' | 'logs' | 'orders' | 'users' | 'discord' | 'visitors';
+type AdminTab = 'products' | 'crypto' | 'logs' | 'orders' | 'users' | 'analytics' | 'discord' | 'visitors';
 
 export default function AdminPanel() {
   const {
@@ -235,6 +236,7 @@ export default function AdminPanel() {
             <button onClick={() => setTab('logs')} className="cursor-pointer border-none bg-transparent pb-3 transition-all duration-300" style={{ color: tab === 'logs' ? 'var(--accent)' : 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, borderBottom: tab === 'logs' ? '2px solid var(--accent)' : '2px solid transparent' }}>Customer Logs</button>
             <button onClick={() => setTab('orders')} className="cursor-pointer border-none bg-transparent pb-3 transition-all duration-300" style={{ color: tab === 'orders' ? 'var(--accent)' : 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, borderBottom: tab === 'orders' ? '2px solid var(--accent)' : '2px solid transparent' }}>Orders</button>
             <button onClick={() => setTab('users')} className="cursor-pointer border-none bg-transparent pb-3 transition-all duration-300 flex items-center gap-1" style={{ color: tab === 'users' ? 'var(--accent)' : 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, borderBottom: tab === 'users' ? '2px solid var(--accent)' : '2px solid transparent' }}><Users size={14} /> Users</button>
+            <button onClick={() => setTab('analytics')} className="cursor-pointer border-none bg-transparent pb-3 transition-all duration-300 flex items-center gap-1" style={{ color: tab === 'analytics' ? 'var(--accent)' : 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, borderBottom: tab === 'analytics' ? '2px solid var(--accent)' : '2px solid transparent' }}><BarChart3 size={14} /> Analytics</button>
             <button onClick={() => setTab('visitors')} className="cursor-pointer border-none bg-transparent pb-3 transition-all duration-300 flex items-center gap-1" style={{ color: tab === 'visitors' ? '#22c55e' : 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, borderBottom: tab === 'visitors' ? '2px solid #22c55e' : '2px solid transparent' }}><Eye size={14} /> Visitors</button>
             <button onClick={() => setTab('discord')} className="cursor-pointer border-none bg-transparent pb-3 transition-all duration-300 flex items-center gap-1" style={{ color: tab === 'discord' ? '#5865F2' : 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, borderBottom: tab === 'discord' ? '2px solid #5865F2' : '2px solid transparent' }}><MessageCircle size={14} /> Discord</button>
           </div>
@@ -332,6 +334,9 @@ export default function AdminPanel() {
 
           {/* Users Tab */}
           {tab === 'users' && <UsersTab showToast={showToast} />}
+
+          {/* Analytics Tab */}
+          {tab === 'analytics' && <AnalyticsDashboard />}
 
           {/* Discord Settings Tab */}
           {tab === 'discord' && <DiscordSettingsTab showToast={showToast} />}

@@ -22,6 +22,8 @@ import OrderTracking from '@/pages/OrderTracking';
 import AuthPage from '@/pages/AuthPage';
 import ProfilePage from '@/pages/ProfilePage';
 import VerifyPage from '@/pages/VerifyPage';
+import AffiliatePage from '@/pages/AffiliatePage';
+import LiveChat from '@/components/LiveChat';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -127,12 +129,14 @@ function AppContent() {
         <Route path="/login" element={<AuthPage />} />
         <Route path="/verify" element={<VerifyPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/affiliate" element={<AffiliatePage />} />
       </Routes>
       <CartSidebar />
       <CheckoutModal />
       <AdminPanel />
       <SocialProof />
       <Toast />
+      <LiveChat />
     </div>
   );
 }

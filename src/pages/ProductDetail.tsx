@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, ShoppingBag, Check, Star, FileCheck } from 'lucide-react';
 import { useApp } from '@/hooks/useAppContext';
 import CoaViewer from '@/components/CoaViewer';
+import ProductReviews from '@/components/ProductReviews';
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
@@ -268,6 +269,9 @@ export default function ProductDetail() {
         </Link>
         <p>&copy; 2026 NG Research Inc. All rights reserved.</p>
       </footer>
+
+      {/* Reviews */}
+      {id && <ProductReviews productId={id} />}
 
       {/* COA Viewer */}
       {product.coa && (
