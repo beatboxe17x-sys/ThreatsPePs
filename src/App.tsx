@@ -47,13 +47,24 @@ function AppContent() {
 
   useEffect(() => {
     const deviceId = localStorage.getItem('ng_device_id');
-    if (!deviceId) return;
+    if (!deviceId) {
+      console.log('[Toast] No deviceId yet — skipping subscription');
+      return;
+    }
+
+    console.log('[Toast] Subscribing to orders for device:', deviceId);
 
     const unsub = subscribeToOrdersByDeviceId(deviceId, orders => {
+      console.log('[Toast] Received', orders.length, 'orders from Firebase');
       setMyOrders(orders);
+
+      // Check each order for status changes
+      let toastShown = false;
       orders.forEach(o => {
         const newStatus = o.status;
         const oldStatus = prevStatuses.current[o.id];
+
+        // Only show toast if we have a previous status and it changed
         if (oldStatus && oldStatus !== newStatus) {
           const statusLabels: Record<string, string> = {
             processing: 'Awaiting Verification',
@@ -63,13 +74,24 @@ function AppContent() {
             cancelled: 'Cancelled',
           };
           const label = statusLabels[newStatus] || newStatus;
+          console.log(`[Toast] Status changed for ${o.id}: ${oldStatus} → ${newStatus}`);
           showToast(`Order ${o.id} updated: ${label}`, '\uD83D\uDCE6');
+          toastShown = true;
         }
+
+        // Always update the tracked status
         prevStatuses.current[o.id] = newStatus;
       });
+
+      if (!toastShown && orders.length > 0) {
+        console.log('[Toast] No status changes detected this update');
+      }
     });
 
-    return () => unsub();
+    return () => {
+      console.log('[Toast] Unsubscribing from orders');
+      unsub();
+    };
   }, [showToast]);
 
   return (

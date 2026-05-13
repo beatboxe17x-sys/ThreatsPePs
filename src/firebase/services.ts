@@ -149,23 +149,37 @@ export async function loadOrdersByDeviceId(deviceId: string): Promise<Order[]> {
   if (!database) return [];
   const q = query(
     collection(database, ORDERS_COLLECTION),
-    where('deviceId', '==', deviceId),
-    orderBy('createdAt', 'desc')
+    where('deviceId', '==', deviceId)
   );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ ...d.data(), id: d.id } as Order));
+  const orders = snap.docs.map(d => ({ ...d.data(), id: d.id } as Order));
+  orders.sort((a, b) => {
+    const aTime = a.createdAt?.toMillis?.() || new Date(a.date).getTime() || 0;
+    const bTime = b.createdAt?.toMillis?.() || new Date(b.date).getTime() || 0;
+    return bTime - aTime;
+  });
+  return orders;
 }
 
 export function subscribeToOrdersByDeviceId(deviceId: string, callback: (orders: Order[]) => void) {
   const database = getDb();
   if (!database) return () => {};
+  // Simple where query — no composite index needed (auto-index handles equality)
   const q = query(
     collection(database, ORDERS_COLLECTION),
-    where('deviceId', '==', deviceId),
-    orderBy('createdAt', 'desc')
+    where('deviceId', '==', deviceId)
   );
   return onSnapshot(q, snap => {
-    callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as Order)));
+    const orders = snap.docs.map(d => ({ ...d.data(), id: d.id } as Order));
+    // Client-side sort by date descending
+    orders.sort((a, b) => {
+      const aTime = a.createdAt?.toMillis?.() || new Date(a.date).getTime() || 0;
+      const bTime = b.createdAt?.toMillis?.() || new Date(b.date).getTime() || 0;
+      return bTime - aTime;
+    });
+    callback(orders);
+  }, err => {
+    console.error('[subscribeToOrdersByDeviceId] Error:', err.message);
   });
 }
 
