@@ -38,9 +38,9 @@ export default function FeaturesSection() {
   }, []);
 
   return (
-    <section id="features" style={{ background: 'var(--bg)', borderTop: '1px solid var(--border)', padding: '100px var(--container-pad)' }}>
+    <section id="features" style={{ background: 'var(--bg)', borderTop: '1px solid var(--border)', padding: '60px var(--container-pad) 80px' }}>
       <div style={{ maxWidth: 'var(--container-max)', margin: '0 auto' }}>
-        <div className="text-center mb-16">
+        <div className="text-center mb-10">
           <h2 className="mb-4" style={{ fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', fontWeight: 800, letterSpacing: '-0.01em' }}>
             Why Researchers Trust Threats
           </h2>
