@@ -108,17 +108,6 @@ export default function Navbar() {
 
           {/* Right actions */}
           <div className="hidden lg:flex items-center gap-3">
-            <a
-              href="https://discord.gg/4hENXJWUax"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 no-underline transition-all duration-300"
-              style={{ background: '#5865F2', color: '#fff', padding: '8px 14px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 600 }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#4752C4'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#5865F2'; }}
-            >
-              <MessageCircle size={14} /> Discord
-            </a>
             <SearchBar />
             <button
               onClick={openCart}
@@ -147,15 +136,6 @@ export default function Navbar() {
 
           {/* Mobile */}
           <div className="flex lg:hidden items-center gap-3">
-            <a
-              href="https://discord.gg/4hENXJWUax"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 no-underline"
-              style={{ background: '#5865F2', color: '#fff', padding: '6px 10px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600 }}
-            >
-              <MessageCircle size={12} /> Discord
-            </a>
             <SearchBar />
             <button onClick={openCart} className="relative bg-transparent border-none cursor-pointer p-2" style={{ color: 'var(--text-muted)' }}>
               <ShoppingBag size={22} />
