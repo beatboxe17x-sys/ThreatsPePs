@@ -1,6 +1,6 @@
 export default function DisclaimerSection() {
   return (
-    <section style={{ background: 'var(--bg-light)', borderTop: '1px solid var(--border)', padding: '60px var(--container-pad)' }}>
+    <section style={{ background: 'var(--bg-light)', padding: '24px var(--container-pad) 32px' }}>
       <div className="text-center" style={{ maxWidth: '800px', margin: '0 auto' }}>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.8 }}>
           <strong>DISCLAIMER</strong>

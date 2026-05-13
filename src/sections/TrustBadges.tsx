@@ -64,8 +64,7 @@ export default function TrustBadges() {
       style={{
         background: 'var(--bg-light)',
         borderTop: '1px solid var(--border)',
-        borderBottom: '1px solid var(--border)',
-        padding: '24px var(--container-pad)',
+        padding: '16px var(--container-pad)',
       }}
     >
       <div

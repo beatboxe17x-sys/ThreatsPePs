@@ -38,7 +38,7 @@ export default function FeaturesSection() {
   }, []);
 
   return (
-    <section id="features" style={{ background: 'var(--bg)', borderTop: '1px solid var(--border)', padding: '40px var(--container-pad) 50px' }}>
+    <section id="features" style={{ background: 'var(--bg)', padding: '32px var(--container-pad) 40px' }}>
       <div style={{ maxWidth: 'var(--container-max)', margin: '0 auto' }}>
         <div className="text-center mb-6">
           <h2 className="mb-2" style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 800, letterSpacing: '-0.01em' }}>

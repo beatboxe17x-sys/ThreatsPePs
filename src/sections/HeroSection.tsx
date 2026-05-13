@@ -98,7 +98,7 @@ export default function HeroSection() {
     <section
       className="min-h-screen flex items-center relative overflow-hidden"
       style={{
-        padding: '100px var(--container-pad) 40px',
+        padding: '80px var(--container-pad) 32px',
         background: `radial-gradient(ellipse at 50% 0%, rgba(56,138,177,0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 50%, rgba(77,184,232,0.04) 0%, transparent 40%), var(--bg)`,
       }}
     >

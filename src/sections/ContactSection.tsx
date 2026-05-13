@@ -32,7 +32,7 @@ export default function ContactSection() {
   };
 
   return (
-    <section id="contact" ref={sectionRef} style={{ background: 'var(--bg)', borderTop: '1px solid var(--border)', padding: '100px var(--container-pad)' }}>
+    <section id="contact" ref={sectionRef} style={{ background: 'var(--bg)', padding: '32px var(--container-pad) 40px' }}>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-20 items-center" style={{ maxWidth: 'var(--container-max)', margin: '0 auto' }}>
         {/* Left Column */}
         <div className="reveal">
