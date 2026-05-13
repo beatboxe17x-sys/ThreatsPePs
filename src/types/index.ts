@@ -102,8 +102,8 @@ export const DEFAULT_PRODUCTS: Record<string, Product> = {
   ghkcu: {
     name: 'GHK-Cu',
     price: 44.99,
-    img: '/images/ghkcu.png',
-    mg: '50 MG',
+    img: '/images/ghk-cu.png',
+    mg: '100 MG',
     shopify: 'https://nextgen-research-2.myshopify.com/products/ghk-cu-50-mg?variant=48567022846179',
     description: 'Copper tripeptide complex for tissue regeneration, wound healing, and skin barrier function research.',
     highlights: ['Copper peptide complex', '50 MG research-grade', '99%+ purity verified', 'COA included'],
@@ -111,7 +111,7 @@ export const DEFAULT_PRODUCTS: Record<string, Product> = {
   bpc157: {
     name: 'BPC-157',
     price: 54.99,
-    img: '/images/bpc157.png',
+    img: '/images/bpc-157.png',
     mg: '10 MG',
     shopify: 'https://nextgen-research-2.myshopify.com/products/bpc-157-10mg?variant=48567021404387',
     description: 'Body Protection Compound-157, a synthetic pentadecapeptide for healing, recovery, and regenerative medicine research.',
@@ -130,7 +130,7 @@ export const DEFAULT_PRODUCTS: Record<string, Product> = {
   glp3rt: {
     name: 'GLP-3 RT',
     price: 89.99,
-    img: '/images/glp3rt.png',
+    img: '/images/glp-3rt.png',
     mg: '20 MG',
     shopify: 'https://nextgen-research-2.myshopify.com/products/glp-3-rt-20-mg?variant=48566637789411',
     description: 'Next-generation GLP-3 receptor-targeted peptide for advanced metabolic, appetite regulation, and weight management research.',
@@ -139,7 +139,7 @@ export const DEFAULT_PRODUCTS: Record<string, Product> = {
   semax: {
     name: 'Semax',
     price: 64.99,
-    img: '/images/hero-vial-1.png',
+    img: '/images/semax.png',
     mg: '10 MG',
     shopify: 'https://nextgen-research-2.myshopify.com/products',
     description: 'Synthetic heptapeptide for cognitive enhancement, neuroprotection, and BDNF expression research.',
@@ -149,7 +149,7 @@ export const DEFAULT_PRODUCTS: Record<string, Product> = {
   selank: {
     name: 'Selank',
     price: 64.99,
-    img: '/images/hero-vial-2.png',
+    img: '/images/selank.png',
     mg: '10 MG',
     shopify: 'https://nextgen-research-2.myshopify.com/products',
     description: 'Synthetic tuftsin analog for anxiolytic, nootropic, and immunomodulatory research applications.',
@@ -159,7 +159,7 @@ export const DEFAULT_PRODUCTS: Record<string, Product> = {
   tirzepatide: {
     name: 'Tirzepatide',
     price: 84.99,
-    img: '/images/hero-vial-3.png',
+    img: '/images/tirzepatide.png',
     mg: '10 MG',
     shopify: 'https://nextgen-research-2.myshopify.com/products',
     description: 'Dual GIP/GLP-1 receptor agonist for advanced metabolic, glycemic control, and weight management research.',
