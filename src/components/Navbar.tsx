@@ -3,6 +3,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { ShoppingBag, Menu, X, MessageCircle } from 'lucide-react';
 import { useApp } from '@/hooks/useAppContext';
 import SearchBar from './SearchBar';
+import ActiveOrder from './ActiveOrder';
 
 export default function Navbar() {
   const { cart, openCart, openAdmin } = useApp();
@@ -108,6 +109,7 @@ export default function Navbar() {
 
           {/* Right actions */}
           <div className="hidden lg:flex items-center gap-3">
+            <ActiveOrder compact />
             <SearchBar />
             <button
               onClick={openCart}
@@ -136,6 +138,7 @@ export default function Navbar() {
 
           {/* Mobile */}
           <div className="flex lg:hidden items-center gap-3">
+            <ActiveOrder compact />
             <SearchBar />
             <button onClick={openCart} className="relative bg-transparent border-none cursor-pointer p-2" style={{ color: 'var(--text-muted)' }}>
               <ShoppingBag size={22} />
