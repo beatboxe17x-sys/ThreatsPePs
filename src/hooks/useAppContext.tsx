@@ -81,10 +81,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastState>({ message: '', icon: '\u2705', visible: false });
   const [requireLogin, setRequireLogin] = useState(false);
 
-  // Load shop settings
+  // Subscribe to shop settings (real-time)
   useEffect(() => {
-    import('@/firebase/userAuth').then(({ getShopSettings }) => {
-      getShopSettings().then(s => setRequireLogin(!!s.requireLogin));
+    import('@/firebase/userAuth').then(({ subscribeToShopSettings }) => {
+      const unsub = subscribeToShopSettings(settings => {
+        setRequireLogin(!!settings.requireLogin);
+      });
+      return unsub;
     }).catch(() => {});
   }, []);
 
