@@ -38,7 +38,8 @@ export default function AuthPage() {
       }
       const result = await register(email, password, displayName || email.split('@')[0]);
       if (result.success) {
-        // Show code and redirect to verify
+        // Store code for display on verify page
+        sessionStorage.setItem('ng_verify_code', result.code || '');
         navigate('/verify');
         return;
       }

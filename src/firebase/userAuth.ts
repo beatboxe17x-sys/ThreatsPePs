@@ -85,7 +85,7 @@ export async function registerUser(
 
     await setDoc(userRef, user);
 
-    // Don't auto-login — user needs to verify email first
+    // Store pending email for verify page
     localStorage.setItem('ng_pending_email', email.toLowerCase());
 
     return { success: true, user, code: verificationCode };
