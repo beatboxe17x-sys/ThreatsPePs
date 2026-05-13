@@ -162,7 +162,7 @@ export default function HeroSection() {
           {/* Floating Vials */}
           <div className="floating-vials-container" style={{ perspective: '800px' }}>
             <div ref={floatingRef} className="floating-vials transition-transform duration-100 ease-out">
-              <img src="/images/bpc-157.png?v=2" alt="Research Peptide Vials" />
+              <img src="/images/bpc-157.png" alt="Research Peptide Vials" />
             </div>
           </div>
 
