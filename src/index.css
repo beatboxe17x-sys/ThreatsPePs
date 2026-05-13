@@ -728,13 +728,18 @@ button:hover .vial-hint {
 }
 
 .reveal-scale {
-  opacity: 0;
-  transform: scale(0.92);
+  opacity: 1;
+  transform: scale(1);
   transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.reveal-scale.active {
+.reveal-scale.animate {
+  opacity: 0;
+  transform: scale(0.92);
+}
+
+.reveal-scale.animate.active {
   opacity: 1;
   transform: scale(1);
 }

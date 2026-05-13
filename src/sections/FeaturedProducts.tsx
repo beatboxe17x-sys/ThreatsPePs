@@ -50,7 +50,7 @@ export default function FeaturedProducts() {
           {productList.map(([id, product]) => (
             <div
               key={id}
-              className="reveal-scale text-center transition-all duration-300"
+              className="text-center transition-all duration-300"
               style={{
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border)',
