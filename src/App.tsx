@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from '@/hooks/useAppContext';
 import { startVisitorSession, trackPageView } from '@/firebase/visitor';
-import { db } from '@/firebase/config';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { subscribeToOrdersByDeviceId } from '@/firebase/services';
+import type { Order } from '@/firebase/services';
 import Navbar from '@/components/Navbar';
 import CartSidebar from '@/components/CartSidebar';
 import CheckoutModal from '@/components/CheckoutModal';
@@ -42,20 +42,18 @@ function AppContent() {
     trackPageView(pathname);
   }, [pathname]);
 
-  // Listen for order status changes and show toast notifications
+  // Listen for order status changes via Firebase and show toast notifications
+  const [myOrders, setMyOrders] = useState<Order[]>([]);
+
   useEffect(() => {
-    const myOrderIds: string[] = JSON.parse(localStorage.getItem('ng_my_orders') || '[]');
-    if (myOrderIds.length === 0) return;
-    if (!db) return;
+    const deviceId = localStorage.getItem('ng_device_id');
+    if (!deviceId) return;
 
-    const unsubscribes = myOrderIds.slice(0, 10).map(orderId => {
-      if (!db) return () => {};
-      return onSnapshot(doc(db, 'orders', orderId), snap => {
-        if (!snap.exists()) return;
-        const data = snap.data();
-        const newStatus = data.status as string;
-        const oldStatus = prevStatuses.current[orderId];
-
+    const unsub = subscribeToOrdersByDeviceId(deviceId, orders => {
+      setMyOrders(orders);
+      orders.forEach(o => {
+        const newStatus = o.status;
+        const oldStatus = prevStatuses.current[o.id];
         if (oldStatus && oldStatus !== newStatus) {
           const statusLabels: Record<string, string> = {
             processing: 'Awaiting Verification',
@@ -65,13 +63,13 @@ function AppContent() {
             cancelled: 'Cancelled',
           };
           const label = statusLabels[newStatus] || newStatus;
-          showToast(`Order ${orderId} updated: ${label}`, '\uD83D\uDCE6');
+          showToast(`Order ${o.id} updated: ${label}`, '\uD83D\uDCE6');
         }
-        prevStatuses.current[orderId] = newStatus;
+        prevStatuses.current[o.id] = newStatus;
       });
     });
 
-    return () => unsubscribes.forEach(fn => fn());
+    return () => unsub();
   }, [showToast]);
 
   return (

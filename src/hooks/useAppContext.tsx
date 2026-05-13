@@ -225,22 +225,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const saveOrder = useCallback(async (order: Order) => {
-    // Generate a unique device ID for this browser (for privacy — only shows this device's orders)
+    // Generate a unique device ID for this browser
     let deviceId = localStorage.getItem('ng_device_id');
     if (!deviceId) {
       deviceId = 'dev-' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
       localStorage.setItem('ng_device_id', deviceId);
     }
     const orderWithDevice = { ...order, deviceId };
-
     setOrders(prev => [orderWithDevice, ...prev]);
-    const myOrders = JSON.parse(localStorage.getItem('ng_my_orders') || '[]');
-    myOrders.unshift(order.id);
-    localStorage.setItem('ng_my_orders', JSON.stringify(myOrders));
-    // Only store this device's orders locally
-    const myDeviceOrders = JSON.parse(localStorage.getItem('ng_order_history') || '[]');
-    myDeviceOrders.unshift(orderWithDevice);
-    localStorage.setItem('ng_order_history', JSON.stringify(myDeviceOrders.slice(0, 100)));
     try { await saveOrderToFirestore(orderWithDevice); } catch (_) {}
   }, []);
 

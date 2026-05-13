@@ -1,6 +1,6 @@
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  onSnapshot, query, orderBy, Timestamp, writeBatch,
+  onSnapshot, query, where, orderBy, Timestamp, writeBatch,
   type Firestore,
 } from 'firebase/firestore';
 import { db, hasFirebaseConfig } from './config';
@@ -108,6 +108,7 @@ export interface Order {
     zip: string;
     country: string;
   };
+  deviceId?: string;
   createdAt?: Timestamp;
 }
 
@@ -141,6 +142,31 @@ export async function updateOrderStatus(id: string, status: Order['status']) {
   const database = getDb();
   if (!database) return;
   await updateDoc(doc(database, ORDERS_COLLECTION, id), { status });
+}
+
+export async function loadOrdersByDeviceId(deviceId: string): Promise<Order[]> {
+  const database = getDb();
+  if (!database) return [];
+  const q = query(
+    collection(database, ORDERS_COLLECTION),
+    where('deviceId', '==', deviceId),
+    orderBy('createdAt', 'desc')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ ...d.data(), id: d.id } as Order));
+}
+
+export function subscribeToOrdersByDeviceId(deviceId: string, callback: (orders: Order[]) => void) {
+  const database = getDb();
+  if (!database) return () => {};
+  const q = query(
+    collection(database, ORDERS_COLLECTION),
+    where('deviceId', '==', deviceId),
+    orderBy('createdAt', 'desc')
+  );
+  return onSnapshot(q, snap => {
+    callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as Order)));
+  });
 }
 
 // ============================================

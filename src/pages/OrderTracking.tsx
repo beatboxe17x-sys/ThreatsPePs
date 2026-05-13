@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Search, Package, CheckCircle, Truck, Home, X, Clock, AlertCircle, ChevronRight, RefreshCw, MessageCircle, ExternalLink } from 'lucide-react';
 import { db } from '@/firebase/config';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
+import { loadOrdersByDeviceId, subscribeToOrdersByDeviceId } from '@/firebase/services';
 import type { Order } from '@/firebase/services';
 
 const STATUS_STEPS: { key: Order['status']; label: string; icon: typeof Package; desc: string }[] = [
@@ -21,20 +22,20 @@ export default function OrderTracking() {
   const [storedOrders, setStoredOrders] = useState<Order[]>([]);
   const unsubRef = useRef<(() => void) | null>(null);
 
-  // Load only THIS DEVICE's orders on mount (privacy — can't see other people's orders)
+  // Load only THIS DEVICE's orders from Firebase
   useEffect(() => {
-    try {
-      const deviceId = localStorage.getItem('ng_device_id');
-      const allOrders = JSON.parse(localStorage.getItem('ng_order_history') || '[]');
-      // Only show orders placed from this browser/device
-      const myOrders = deviceId
-        ? allOrders.filter((o: Order & { deviceId?: string }) => o.deviceId === deviceId)
-        : allOrders;
-      setStoredOrders(myOrders);
-      console.log('[TrackOrder] Loaded', myOrders.length, 'orders for device', deviceId);
-    } catch (e) {
-      console.error('[TrackOrder] Failed to load orders:', e);
+    const deviceId = localStorage.getItem('ng_device_id');
+    if (!deviceId) {
+      setStoredOrders([]);
+      return;
     }
+
+    const unsub = subscribeToOrdersByDeviceId(deviceId, orders => {
+      setStoredOrders(orders);
+      console.log('[TrackOrder] Loaded', orders.length, 'orders for device', deviceId);
+    });
+
+    return () => unsub();
   }, []);
 
   // Subscribe to real-time order updates
@@ -73,52 +74,15 @@ export default function OrderTracking() {
       } catch (e) { console.warn('[TrackOrder] Firebase lookup failed:', e); }
     }
 
-    // Fallback: check localStorage (only THIS device's orders)
-    try {
-      const deviceId = localStorage.getItem('ng_device_id');
-      const allOrders = JSON.parse(localStorage.getItem('ng_order_history') || '[]');
-      const found = allOrders.find((o: Order & { deviceId?: string }) => o.id === lookupId.trim() && (!deviceId || o.deviceId === deviceId));
-      if (found) {
-        setOrder(found);
-        setLoading(false);
-        setSearchParams({ id: lookupId.trim() });
-        return;
-      }
-    } catch (e) { console.warn('[TrackOrder] localStorage lookup failed:', e); }
-
-    // Fallback 2: check if the ID is in myOrders list (ID-only tracking)
-    try {
-      const idsOnly = JSON.parse(localStorage.getItem('ng_my_orders') || '[]');
-      if (idsOnly.includes(lookupId.trim())) {
-        setOrder({
-          id: lookupId.trim(),
-          date: new Date().toISOString(),
-          items: [{ id: 'unknown', name: 'Order details synced from cloud', qty: 1, price: 0 }],
-          total: 0,
-          crypto: 'N/A',
-          txHash: 'pending-verification',
-          status: 'processing',
-          shipping: { name: '', email: '', address: '', city: '', zip: '', country: '' },
-        });
-        setLoading(false);
-        setSearchParams({ id: lookupId.trim() });
-        return;
-      }
-    } catch (_) { /* noop */ }
-
     setLoading(false);
     setError('Order not found. Check your order number and try again.');
   };
 
-  const refreshOrders = () => {
-    try {
-      const deviceId = localStorage.getItem('ng_device_id');
-      const allOrders = JSON.parse(localStorage.getItem('ng_order_history') || '[]');
-      const myOrders = deviceId
-        ? allOrders.filter((o: Order & { deviceId?: string }) => o.deviceId === deviceId)
-        : allOrders;
-      setStoredOrders(myOrders);
-    } catch (_) {}
+  const refreshOrders = async () => {
+    const deviceId = localStorage.getItem('ng_device_id');
+    if (!deviceId) { setStoredOrders([]); return; }
+    const orders = await loadOrdersByDeviceId(deviceId);
+    setStoredOrders(orders);
   };
 
   const getStatusIndex = (status: string) => STATUS_STEPS.findIndex(s => s.key === status);
@@ -229,33 +193,7 @@ export default function OrderTracking() {
               </button>
             ))}
 
-            {/* Also show ID-only orders */}
-            {(() => {
-              try {
-                const idsOnly: string[] = JSON.parse(localStorage.getItem('ng_my_orders') || '[]');
-                const historyIds = new Set(storedOrders.map(o => o.id));
-                const missingIds = idsOnly.filter(id => !historyIds.has(id));
-                if (missingIds.length === 0) return null;
-                return (
-                  <>
-                    <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '16px', marginBottom: '8px' }}>
-                      Additional Order IDs
-                    </h3>
-                    {missingIds.map(id => (
-                      <button
-                        key={id}
-                        onClick={() => { setOrderId(id); lookupOrder(id); }}
-                        className="w-full flex items-center justify-between cursor-pointer border-none"
-                        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 16px', marginBottom: '8px', color: 'var(--text)', fontSize: '0.85rem', fontFamily: 'monospace' }}
-                      >
-                        <span>{id}</span>
-                        <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
-                      </button>
-                    ))}
-                  </>
-                );
-              } catch { return null; }
-            })()}
+
           </div>
         )}
 
