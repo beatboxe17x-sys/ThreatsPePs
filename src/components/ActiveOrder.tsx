@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, ChevronRight, Clock, CheckCircle, Truck, Home, Ban, Link2, ExternalLink } from 'lucide-react';
 import { db } from '@/firebase/config';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, query, where, collection, orderBy } from 'firebase/firestore';
 import type { Order } from '@/firebase/services';
 
 interface ActiveOrderProps {
@@ -17,51 +17,75 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   cancelled: { label: 'Cancelled', color: '#ef4444', bg: 'rgba(239,68,68,0.12)', icon: Ban, blocks: 0 },
 };
 
+function filterActive(orders: Order[]): Order[] {
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  return orders
+    .filter(o => o.status !== 'cancelled')
+    .filter(o => {
+      const orderTime = new Date(o.date).getTime() || 0;
+      return o.status !== 'delivered' || orderTime > cutoff;
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
 export default function ActiveOrder({ compact = false }: ActiveOrderProps) {
   const navigate = useNavigate();
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
   const [expanded, setExpanded] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const prevIds = useRef<string[]>([]);
 
-  // Subscribe to user's order IDs
+  // Subscribe via deviceId (primary) + localStorage order IDs (fallback)
   useEffect(() => {
     const database = db;
     if (!database) return;
 
+    const unsubscribes: (() => void)[] = [];
+
+    // Method 1: Query by deviceId from Firebase
+    const deviceId = localStorage.getItem('ng_device_id');
+    if (deviceId) {
+      try {
+        const q = query(
+          collection(database, 'orders'),
+          where('deviceId', '==', deviceId)
+        );
+        const unsub = onSnapshot(q, snap => {
+          const orders = snap.docs.map(d => ({ ...d.data(), id: d.id } as Order));
+          setActiveOrders(prev => {
+            const merged = [...prev, ...orders].filter((o, i, arr) =>
+              arr.findIndex(x => x.id === o.id) === i
+            );
+            return filterActive(merged);
+          });
+        }, err => console.error('[ActiveOrder] deviceId query error:', err.message));
+        unsubscribes.push(unsub);
+      } catch (e) {
+        console.warn('[ActiveOrder] deviceId query failed:', e);
+      }
+    }
+
+    // Method 2: Subscribe to individual order IDs from localStorage
     const allIds: string[] = JSON.parse(localStorage.getItem('ng_order_ids') || '[]');
     const legacyIds: string[] = JSON.parse(localStorage.getItem('ng_my_orders') || '[]');
-    const ids = [...new Set([...allIds, ...legacyIds])].slice(0, 10);
+    const ids = [...new Set([...allIds, ...legacyIds])].slice(0, 15);
 
-    if (ids.length === 0) return;
-
-    // Store for tracking
-    prevIds.current = ids;
-
-    const orders: Order[] = [];
-    const unsubscribes = ids.map(orderId =>
-      onSnapshot(
+    ids.forEach(orderId => {
+      const unsub = onSnapshot(
         doc(database, 'orders', orderId),
         snap => {
           if (!snap.exists()) return;
           const data = { ...snap.data(), id: snap.id } as Order;
-          const idx = orders.findIndex(o => o.id === data.id);
-          if (idx >= 0) orders[idx] = data;
-          else orders.push(data);
-          // Filter out delivered/cancelled older than 7 days
-          const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-          const active = orders
-            .filter(o => o.status !== 'cancelled')
-            .filter(o => {
-              const orderTime = new Date(o.date).getTime() || 0;
-              return o.status !== 'delivered' || orderTime > cutoff;
-            })
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          setActiveOrders(active);
+          setActiveOrders(prev => {
+            const merged = prev.some(o => o.id === data.id)
+              ? prev.map(o => o.id === data.id ? data : o)
+              : [...prev, data];
+            return filterActive(merged);
+          });
         },
-        () => {} // silent error
-      )
-    );
+        () => {}
+      );
+      unsubscribes.push(unsub);
+    });
 
     return () => unsubscribes.forEach(fn => fn());
   }, []);
