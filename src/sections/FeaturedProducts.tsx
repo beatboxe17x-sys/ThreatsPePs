@@ -35,13 +35,13 @@ export default function FeaturedProducts() {
   const productList = Object.entries(products);
 
   return (
-    <section id="products" style={{ background: 'var(--bg-light)', borderTop: '1px solid var(--border)', padding: '60px var(--container-pad) 80px' }}>
+    <section id="products" style={{ background: 'var(--bg-light)', padding: '16px var(--container-pad) 40px' }}>
       <div style={{ maxWidth: 'var(--container-max)', margin: '0 auto' }}>
-        <div className="text-center mb-10">
-          <h2 className="mb-4" style={{ fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', fontWeight: 800, letterSpacing: '-0.01em' }}>
+        <div className="text-center mb-3">
+          <h2 className="mb-2" style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 800, letterSpacing: '-0.01em' }}>
             Featured Products
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '600px', margin: '0 auto' }}>
             Browse through our premium research peptides, carefully formulated for purity, consistency, and quality.
           </p>
         </div>
