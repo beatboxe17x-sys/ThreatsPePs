@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ShoppingBag, Menu, X, MessageCircle } from 'lucide-react';
+import { ShoppingBag, Menu, X, MessageCircle, LogIn, User } from 'lucide-react';
 import { useApp } from '@/hooks/useAppContext';
+import { useAuth } from '@/hooks/useAuth';
 import SearchBar from './SearchBar';
 import ActiveOrder from './ActiveOrder';
 
 export default function Navbar() {
   const { cart, openCart, openAdmin } = useApp();
+  const { user, isLoggedIn, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -125,6 +127,25 @@ export default function Navbar() {
                 </span>
               )}
             </button>
+            {isLoggedIn ? (
+              <button
+                onClick={() => navigate('/profile')}
+                className="flex items-center gap-1.5 cursor-pointer border-none transition-all duration-200"
+                style={{ background: 'var(--bg-card)', color: 'var(--text)', padding: '8px 14px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 600, border: '1px solid var(--border)' }}
+              >
+                <User size={14} /> {user?.displayName || 'Account'}
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/login')}
+                className="flex items-center gap-1.5 cursor-pointer border-none transition-all duration-300"
+                style={{ background: 'var(--accent)', color: '#fff', padding: '8px 16px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 600 }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#2d6f8f'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent)'; }}
+              >
+                <LogIn size={14} /> Sign In
+              </button>
+            )}
             <button
               onClick={() => scrollTo('#products')}
               className="cursor-pointer border-none transition-all duration-300"

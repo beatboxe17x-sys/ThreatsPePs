@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useApp } from '@/hooks/useAppContext';
+import { useAuth } from '@/hooks/useAuth';
 import { X, Copy, Check, AlertTriangle, Mail, Clock, ArrowRight } from 'lucide-react';
 import type { Crypto } from '@/types';
 import { CRYPTO_NAMES, CRYPTO_SYMBOLS, CRYPTO_RATES } from '@/types';
@@ -13,6 +14,7 @@ const cryptoIcons: Record<Crypto, string> = {
 
 export default function CheckoutModal() {
   const { cart, products, cryptoAddresses, isCheckoutOpen, closeCheckout, selectedCrypto, selectCrypto, showToast, saveOrder, promo, getDiscountedTotal, getDiscountAmount, markPromoUsed } = useApp();
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [timer, setTimer] = useState(3600);
   const [copied, setCopied] = useState(false);
@@ -52,6 +54,7 @@ export default function CheckoutModal() {
       txHash: 'pending-verification',
       status: 'processing' as const,
       shipping,
+      userId: user?.uid || null,
     };
     // Save to Firebase (with localStorage fallback built into context)
     await saveOrder(order);

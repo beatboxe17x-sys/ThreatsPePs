@@ -109,6 +109,7 @@ export interface Order {
     country: string;
   };
   deviceId?: string;
+  userId?: string | null;
   createdAt?: Timestamp;
 }
 

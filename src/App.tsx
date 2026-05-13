@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from '@/hooks/useAppContext';
+import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { startVisitorSession, trackPageView } from '@/firebase/visitor';
 import { db } from '@/firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -18,6 +19,8 @@ import WhyUs from '@/pages/WhyUs';
 import FaqPage from '@/pages/FaqPage';
 import ProductDetail from '@/pages/ProductDetail';
 import OrderTracking from '@/pages/OrderTracking';
+import AuthPage from '@/pages/AuthPage';
+import ProfilePage from '@/pages/ProfilePage';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -120,6 +123,8 @@ function AppContent() {
         <Route path="/faq" element={<FaqPage />} />
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/track-order" element={<OrderTracking />} />
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
       </Routes>
       <CartSidebar />
       <CheckoutModal />
@@ -132,8 +137,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <AuthProvider>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </AuthProvider>
   );
 }
