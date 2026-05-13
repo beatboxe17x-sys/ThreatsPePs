@@ -11,6 +11,8 @@ export interface UserProfile {
   email: string;
   displayName: string;
   passwordHash: string;
+  verified: boolean;
+  verificationCode?: string;
   createdAt: Timestamp;
   lastLogin: Timestamp;
 }
@@ -47,9 +49,13 @@ function parseToken(token: string): { id: string } | null {
   } catch { return null; }
 }
 
+function generateCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 export async function registerUser(
   email: string, password: string, displayName: string
-): Promise<{ success: true; user: UserProfile; token: string } | { success: false; error: string }> {
+): Promise<{ success: true; user: UserProfile; code: string } | { success: false; error: string }> {
   const database = getDb();
   if (!database) return { success: false, error: 'Database unavailable' };
 
@@ -64,23 +70,25 @@ export async function registerUser(
     }
 
     const passwordHash = await hashPassword(password);
+    const verificationCode = generateCode();
     const now = Timestamp.now();
     const user: UserProfile = {
       uid: docId,
       email: email.toLowerCase(),
       displayName,
       passwordHash,
+      verified: false,
+      verificationCode,
       createdAt: now,
       lastLogin: now,
     };
 
     await setDoc(userRef, user);
 
-    const token = createSessionToken(docId);
-    localStorage.setItem('ng_auth_token', token);
-    localStorage.setItem('ng_user_id', docId);
+    // Don't auto-login — user needs to verify email first
+    localStorage.setItem('ng_pending_email', email.toLowerCase());
 
-    return { success: true, user, token };
+    return { success: true, user, code: verificationCode };
   } catch (err: any) {
     console.error('[registerUser] Error:', err);
     // Check for permission denied
@@ -109,6 +117,11 @@ export async function loginUser(
     const valid = await hashPassword(password) === user.passwordHash;
     if (!valid) {
       return { success: false, error: 'Invalid email or password' };
+    }
+
+    // Check verification
+    if (!user.verified) {
+      return { success: false, error: 'Please verify your email before logging in' };
     }
 
     await updateDoc(doc(database, USERS_COLLECTION, docId), { lastLogin: Timestamp.now() });
@@ -144,9 +157,83 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
   try {
     const snap = await getDoc(doc(database, USERS_COLLECTION, payload.id));
     if (!snap.exists()) return null;
-    return { ...snap.data(), uid: snap.id } as UserProfile;
+    const user = { ...snap.data(), uid: snap.id } as UserProfile;
+    // Block unverified users
+    if (!user.verified) {
+      return null;
+    }
+    return user;
   } catch {
     return null;
+  }
+}
+
+// Verify email with code
+export async function verifyEmail(email: string, code: string): Promise<{ success: boolean; error?: string }> {
+  const database = getDb();
+  if (!database) return { success: false, error: 'Database unavailable' };
+
+  try {
+    const docId = emailToDocId(email);
+    const snap = await getDoc(doc(database, USERS_COLLECTION, docId));
+
+    if (!snap.exists()) {
+      return { success: false, error: 'Account not found' };
+    }
+
+    const user = snap.data() as UserProfile;
+
+    if (user.verified) {
+      return { success: false, error: 'Account already verified' };
+    }
+
+    if (user.verificationCode !== code) {
+      return { success: false, error: 'Invalid verification code' };
+    }
+
+    // Mark as verified
+    await updateDoc(doc(database, USERS_COLLECTION, docId), {
+      verified: true,
+      verificationCode: '', // clear code
+    });
+
+    // Auto-login after verification
+    const token = createSessionToken(docId);
+    localStorage.setItem('ng_auth_token', token);
+    localStorage.setItem('ng_user_id', docId);
+    localStorage.removeItem('ng_pending_email');
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('[verifyEmail] Error:', err);
+    return { success: false, error: 'Verification failed' };
+  }
+}
+
+// Resend verification code
+export async function resendVerificationCode(email: string): Promise<{ success: boolean; code?: string; error?: string }> {
+  const database = getDb();
+  if (!database) return { success: false, error: 'Database unavailable' };
+
+  try {
+    const docId = emailToDocId(email);
+    const snap = await getDoc(doc(database, USERS_COLLECTION, docId));
+
+    if (!snap.exists()) {
+      return { success: false, error: 'Account not found' };
+    }
+
+    const user = snap.data() as UserProfile;
+    if (user.verified) {
+      return { success: false, error: 'Already verified' };
+    }
+
+    const newCode = generateCode();
+    await updateDoc(doc(database, USERS_COLLECTION, docId), { verificationCode: newCode });
+
+    return { success: true, code: newCode };
+  } catch {
+    return { success: false, error: 'Failed to resend code' };
   }
 }
 

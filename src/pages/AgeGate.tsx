@@ -1,62 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, AlertTriangle, FlaskConical, FileText } from 'lucide-react';
-import { useApp } from '@/hooks/useAppContext';
-import { markVisitorConsented } from '@/firebase/visitor';
-import type { ConsentLog } from '@/types';
+import { Check, AlertTriangle } from 'lucide-react';
 
 export default function AgeGate() {
   const navigate = useNavigate();
-  const { saveConsentLog } = useApp();
   const [age21, setAge21] = useState(false);
   const [researchOnly, setResearchOnly] = useState(false);
   const [agreeTos, setAgreeTos] = useState(false);
-  const [logging, setLogging] = useState(false);
 
   const allChecked = age21 && researchOnly && agreeTos;
 
-  const handleEnter = async () => {
-    if (!allChecked || logging) return;
-    setLogging(true);
-
-    let ip = 'unknown';
-    try {
-      const res = await fetch('https://api64.ipify.org?format=json', { signal: AbortSignal.timeout(3000) });
-      const data = await res.json();
-      ip = data.ip || 'unknown';
-    } catch {
-      ip = 'unavailable';
-    }
-
-    const logEntry: ConsentLog = {
-      id: 'consent-' + Date.now(),
-      ip,
-      timestamp: new Date().toISOString(),
-      userAgent: navigator.userAgent,
-      age21,
-      researchOnly,
-      agreeTos,
-      screenResolution: `${window.screen.width}x${window.screen.height}`,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      language: navigator.language,
-      languages: Array.from(navigator.languages || []).join(', '),
-      platform: navigator.platform,
-      cookieEnabled: navigator.cookieEnabled,
-      doNotTrack: String(navigator.doNotTrack || 'unspecified'),
-      online: navigator.onLine,
-      vendor: navigator.vendor || 'unknown',
-      hardwareConcurrency: navigator.hardwareConcurrency || 0,
-      deviceMemory: (navigator as any).deviceMemory || 0,
-      maxTouchPoints: navigator.maxTouchPoints || 0,
-      colorDepth: window.screen.colorDepth,
-      pixelRatio: window.devicePixelRatio,
-      referrer: 'site-entry',
-      plugins: Array.from(navigator.plugins || []).map(p => p.name).slice(0, 10),
-      status: 'active',
-    };
-
-    await saveConsentLog(logEntry);
-    markVisitorConsented(logEntry.id);
+  const handleEnter = () => {
+    if (!allChecked) return;
     sessionStorage.setItem('ng_age_verified', 'true');
     navigate('/intro', { replace: true });
   };
@@ -138,7 +93,7 @@ export default function AgeGate() {
         {/* Enter Button */}
         <button
           onClick={handleEnter}
-          disabled={!allChecked || logging}
+          disabled={!allChecked}
           style={{
             width: '100%',
             padding: '12px',
@@ -146,21 +101,19 @@ export default function AgeGate() {
             border: 'none',
             fontSize: '0.9rem',
             fontWeight: 700,
-            cursor: allChecked && !logging ? 'pointer' : 'not-allowed',
-            background: allChecked && !logging ? 'var(--accent)' : 'rgba(56,138,177,0.15)',
-            color: allChecked && !logging ? '#fff' : 'var(--text-muted)',
+            cursor: allChecked ? 'pointer' : 'not-allowed',
+            background: allChecked ? 'var(--accent)' : 'rgba(56,138,177,0.15)',
+            color: allChecked ? '#fff' : 'var(--text-muted)',
             transition: 'all 0.3s',
           }}
           onMouseEnter={e => {
-            if (allChecked && !logging) {
-              e.currentTarget.style.background = '#2d6f8f';
-            }
+            if (allChecked) e.currentTarget.style.background = '#2d6f8f';
           }}
           onMouseLeave={e => {
-            e.currentTarget.style.background = allChecked && !logging ? 'var(--accent)' : 'rgba(56,138,177,0.15)';
+            e.currentTarget.style.background = allChecked ? 'var(--accent)' : 'rgba(56,138,177,0.15)';
           }}
         >
-          {logging ? 'Recording...' : allChecked ? 'Enter Website' : 'Check all boxes to continue'}
+          {allChecked ? 'Enter Website' : 'Check all boxes to continue'}
         </button>
       </div>
     </div>

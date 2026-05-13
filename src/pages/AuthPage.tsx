@@ -37,10 +37,25 @@ export default function AuthPage() {
         return;
       }
       const result = await register(email, password, displayName || email.split('@')[0]);
-      if (!result.success) setError(result.error || 'Registration failed');
+      if (result.success) {
+        // Show code and redirect to verify
+        navigate('/verify');
+        return;
+      }
+      setError(result.error || 'Registration failed');
     } else {
       const result = await login(email, password);
-      if (!result.success) setError(result.error || 'Login failed');
+      if (result.success) {
+        // Login successful
+        return;
+      }
+      // Check if error is about verification
+      if (result.error?.includes('verify')) {
+        localStorage.setItem('ng_pending_email', email.toLowerCase());
+        navigate('/verify');
+        return;
+      }
+      setError(result.error || 'Login failed');
     }
     setLoading(false);
   };

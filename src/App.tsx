@@ -21,6 +21,7 @@ import ProductDetail from '@/pages/ProductDetail';
 import OrderTracking from '@/pages/OrderTracking';
 import AuthPage from '@/pages/AuthPage';
 import ProfilePage from '@/pages/ProfilePage';
+import VerifyPage from '@/pages/VerifyPage';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -124,6 +125,7 @@ function AppContent() {
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/track-order" element={<OrderTracking />} />
         <Route path="/login" element={<AuthPage />} />
+        <Route path="/verify" element={<VerifyPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Routes>
       <CartSidebar />

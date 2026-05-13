@@ -5,7 +5,7 @@ interface AuthContextValue {
   user: UserProfile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (email: string, password: string, displayName: string) => Promise<{ success: boolean; error?: string }>;
+  register: (email: string, password: string, displayName: string) => Promise<{ success: boolean; code?: string; error?: string }>;
   logout: () => void;
   isLoggedIn: boolean;
 }
@@ -42,8 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = useCallback(async (email: string, password: string, displayName: string) => {
     const result = await registerUser(email, password, displayName);
     if (result.success) {
-      setUser(result.user);
-      return { success: true };
+      // Don't auto-login — user must verify email first
+      return { success: true, code: result.code };
     }
     return { success: false, error: result.error };
   }, []);
