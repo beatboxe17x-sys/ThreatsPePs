@@ -39,6 +39,7 @@ export default function Footer() {
               <li><Link to="/track-order" className="no-underline transition-colors duration-300" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>Track Order</Link></li>
               <li><Link to="/why-us" className="no-underline transition-colors duration-300" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>Why Us</Link></li>
               <li><Link to="/faq" className="no-underline transition-colors duration-300" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>FAQ</Link></li>
+              <li><Link to="/affiliate" className="no-underline transition-colors duration-300" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>Affiliate Program</Link></li>
             </ul>
           </div>
 

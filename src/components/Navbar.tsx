@@ -46,6 +46,7 @@ export default function Navbar() {
     { label: 'Why Us', href: '/why-us' },
     { label: 'FAQ', href: '/faq' },
     { label: 'Track Order', href: '/track-order' },
+    { label: 'Affiliate', href: '/affiliate' },
   ];
 
   const scrollLinks = [
