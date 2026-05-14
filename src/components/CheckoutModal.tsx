@@ -13,14 +13,24 @@ import { notifyNewOrder } from '@/discord/webhook';
 import { markVisitorOrderPlaced } from '@/firebase/visitor';
 
 /* ─── crypto config ─── */
-const cryptoMeta: Record<Crypto, { color: string; icon: string; confirm: number; speed: string }> = {
-  btc:  { color: '#f7931a', icon: '\u20BF', confirm: 2,  speed: '10-60 min' },
-  eth:  { color: '#627eea', icon: '\u039E', confirm: 12, speed: '2-5 min' },
-  usdt: { color: '#26a17b', icon: '\u20AE', confirm: 12, speed: '2-5 min' },
-  ltc:  { color: '#345d9d', icon: '\u0141', confirm: 6,  speed: '5-30 min' },
-  xmr:  { color: '#ff6600', icon: '\u0271', confirm: 10, speed: '10-30 min' },
-  sol:  { color: '#9945ff', icon: '\u25CE', confirm: 32, speed: '~1 min' },
+const cryptoMeta: Record<Crypto, { color: string; icon: string; confirm: number; speed: string; scheme: string }> = {
+  btc:  { color: '#f7931a', icon: '\u20BF', confirm: 2,  speed: '10-60 min', scheme: 'bitcoin' },
+  eth:  { color: '#627eea', icon: '\u039E', confirm: 12, speed: '2-5 min', scheme: 'ethereum' },
+  usdt: { color: '#26a17b', icon: '\u20AE', confirm: 12, speed: '2-5 min', scheme: 'ethereum' },
+  ltc:  { color: '#345d9d', icon: '\u0141', confirm: 6,  speed: '5-30 min', scheme: 'litecoin' },
+  xmr:  { color: '#ff6600', icon: '\u0271', confirm: 10, speed: '10-30 min', scheme: 'monero' },
+  sol:  { color: '#9945ff', icon: '\u25CE', confirm: 32, speed: '~1 min', scheme: 'solana' },
 };
+
+/** Build a wallet-compatible payment URI (BIP21 / EIP-681 style) */
+function paymentURI(crypto: Crypto, address: string, amount: string): string {
+  const s = cryptoMeta[crypto].scheme;
+  // Ethereum / USDT use "value" param (in ETH units), others use "amount"
+  if (s === 'ethereum') {
+    return `${s}:${address}?value=${amount}`;
+  }
+  return `${s}:${address}?amount=${amount}`;
+}
 
 /* ─── steps ─── */
 type Step = 1 | 2 | 3 | 4;
@@ -431,7 +441,7 @@ export default function CheckoutModal() {
                 {/* QR + Address side by side */}
                 <div className="flex flex-col sm:flex-row items-center gap-4 mb-4">
                   <div className="p-3 bg-white rounded-xl flex-shrink-0">
-                    <QRCodeSVG value={`${CRYPTO_SYMBOLS[selectedCrypto]}:${address}?amount=${cryptoAmt}`} size={140} />
+                    <QRCodeSVG value={paymentURI(selectedCrypto, address, cryptoAmt)} size={140} />
                   </div>
                   <div className="flex-1 w-full">
                     <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
