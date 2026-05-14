@@ -39,16 +39,16 @@ export default function IntroSplash() {
 
       {/* Floating vials */}
       <div className="intro-vial vial-left">
-        <img src="/images/bpc-157.png?v=4" alt="" draggable={false} />
+        <img src="/images/bpc-157.png?v=5" alt="" draggable={false} />
       </div>
       <div className="intro-vial vial-right">
-        <img src="/images/ghk-cu.png?v=4" alt="" draggable={false} />
+        <img src="/images/ghk-cu.png?v=5" alt="" draggable={false} />
       </div>
       <div className="intro-vial vial-top">
-        <img src="/images/retatrutide.png?v=4" alt="" draggable={false} />
+        <img src="/images/retatrutide.png?v=5" alt="" draggable={false} />
       </div>
       <div className="intro-vial vial-bottom">
-        <img src="/images/sermorelin.png?v=4" alt="" draggable={false} />
+        <img src="/images/sermorelin.png?v=5" alt="" draggable={false} />
       </div>
 
       {/* Particle dots */}

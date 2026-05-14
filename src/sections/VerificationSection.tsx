@@ -102,7 +102,7 @@ export default function VerificationSection() {
               }}
             />
             <img
-              src="/images/bpc-157.png?v=4"
+              src="/images/bpc-157.png?v=5"
               alt="BPC-157 Vial"
               className="relative z-10 w-full transition-transform duration-300"
               style={{

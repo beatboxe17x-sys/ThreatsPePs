@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Search, FileCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const VALID_BATCHES: Record<string, { product: string; purity: string; date: string; lab: string; coa: string }> = {
-  'BPC-2026-001': { product: 'BPC-157 10mg', purity: '99.4%', date: '2026-04-15', lab: 'ProVerde Labs', coa: '/images/coa-bpc157.png?v=4' },
-  'RET-2026-003': { product: 'Retatrutide 20mg', purity: '99.1%', date: '2026-05-01', lab: 'Columbia Labs', coa: '/images/coa-retatrutide.png?v=4' },
-  'SER-2026-002': { product: 'Sermorelin 10mg', purity: '99.6%', date: '2026-04-28', lab: 'ProVerde Labs', coa: '/images/coa-sermorelin.png?v=4' },
-  'SEMAX-2026-001': { product: 'Semax 10mg', purity: '99.2%', date: '2026-05-05', lab: 'Columbia Labs', coa: '/images/coa-semax.png?v=4' },
-  'SEL-2026-001': { product: 'Selank 10mg', purity: '99.3%', date: '2026-05-08', lab: 'ProVerde Labs', coa: '/images/coa-selank.png?v=4' },
-  'TIRZ-2026-001': { product: 'Tirzepatide 10mg', purity: '99.0%', date: '2026-05-10', lab: 'Columbia Labs', coa: '/images/coa-tirz.png?v=4' },
+  'BPC-2026-001': { product: 'BPC-157 10mg', purity: '99.4%', date: '2026-04-15', lab: 'ProVerde Labs', coa: '/images/coa-bpc157.png?v=5' },
+  'RET-2026-003': { product: 'Retatrutide 20mg', purity: '99.1%', date: '2026-05-01', lab: 'Columbia Labs', coa: '/images/coa-retatrutide.png?v=5' },
+  'SER-2026-002': { product: 'Sermorelin 10mg', purity: '99.6%', date: '2026-04-28', lab: 'ProVerde Labs', coa: '/images/coa-sermorelin.png?v=5' },
+  'SEMAX-2026-001': { product: 'Semax 10mg', purity: '99.2%', date: '2026-05-05', lab: 'Columbia Labs', coa: '/images/coa-semax.png?v=5' },
+  'SEL-2026-001': { product: 'Selank 10mg', purity: '99.3%', date: '2026-05-08', lab: 'ProVerde Labs', coa: '/images/coa-selank.png?v=5' },
+  'TIRZ-2026-001': { product: 'Tirzepatide 10mg', purity: '99.0%', date: '2026-05-10', lab: 'Columbia Labs', coa: '/images/coa-tirz.png?v=5' },
 };
 
 export default function BatchLookup() {
