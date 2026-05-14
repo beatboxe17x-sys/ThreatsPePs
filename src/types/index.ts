@@ -82,7 +82,7 @@ export const DEFAULT_PRODUCTS: Record<string, Product> = {
   bpc157: {
     name: 'BPC-157',
     price: 54.99,
-    img: '/images/bpc-157.png?v=5',
+    img: '/images/bpc157.png?v=5',
     mg: '10 MG',
     shopify: 'https://nextgen-research-2.myshopify.com/products/bpc-157-10mg?variant=48567021404387',
     description: 'Body Protection Compound-157, a synthetic pentadecapeptide for healing, recovery, and regenerative medicine research.',
