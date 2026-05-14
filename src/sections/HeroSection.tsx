@@ -179,25 +179,12 @@ export default function HeroSection() {
                     <div className="price">${product.price.toFixed(2)}</div>
                     <p>{product.mg} - Research Purpose Only</p>
                   </Link>
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); addToCart(id); }}
-                      className="cursor-pointer border-none transition-all duration-300"
-                      style={{ background: 'var(--accent)', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600 }}
-                      onMouseEnter={e => { e.currentTarget.style.background = '#2d6f8f'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent)'; }}
-                    >
+                  <div className="card-actions">
+                    <button onClick={(e) => { e.stopPropagation(); addToCart(id); }}>
                       Add to Cart
                     </button>
-                    <Link
-                      to={`/product/${id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center no-underline transition-all duration-300"
-                      style={{ color: 'var(--text-muted)', fontSize: '0.7rem', fontWeight: 500, padding: '6px 8px' }}
-                      onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; }}
-                    >
-                      View →
+                    <Link to={`/product/${id}`} onClick={(e) => e.stopPropagation()}>
+                      View Details →
                     </Link>
                   </div>
                 </div>
