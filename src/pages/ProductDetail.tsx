@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, ShoppingBag, Check, Star, FileCheck } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Check, Star, FileCheck, Box } from 'lucide-react';
 import { useApp } from '@/hooks/useAppContext';
 import CoaViewer from '@/components/CoaViewer';
 import ProductReviews from '@/components/ProductReviews';
@@ -211,6 +211,35 @@ export default function ProductDetail() {
             >
               <ShoppingBag size={22} />
               Add to Cart — ${product.price.toFixed(2)}
+            </button>
+
+            {/* 3D View Button */}
+            <button
+              onClick={() => navigate(`/vial/${id}`)}
+              className="w-full flex items-center justify-center gap-3 cursor-pointer border-none transition-all duration-300"
+              style={{
+                marginTop: '12px',
+                background: 'transparent',
+                color: 'var(--accent)',
+                padding: '16px 32px',
+                borderRadius: '14px',
+                fontSize: '1rem',
+                fontWeight: 700,
+                border: '2px solid var(--accent)',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'var(--accent)';
+                e.currentTarget.style.color = '#fff';
+                e.currentTarget.style.boxShadow = '0 0 30px var(--accent-glow)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--accent)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <Box size={22} />
+              View in 3D
             </button>
           </div>
         </div>

@@ -23,6 +23,7 @@ import AuthPage from '@/pages/AuthPage';
 import ProfilePage from '@/pages/ProfilePage';
 import VerifyPage from '@/pages/VerifyPage';
 import AffiliatePage from '@/pages/AffiliatePage';
+import VialViewer from '@/pages/VialViewer';
 import LiveChat from '@/components/LiveChat';
 
 function ScrollToTop() {
@@ -125,6 +126,7 @@ function AppContent() {
         <Route path="/why-us" element={<WhyUs />} />
         <Route path="/faq" element={<FaqPage />} />
         <Route path="/product/:id" element={<ProductDetail />} />
+        <Route path="/vial/:productId" element={<VialViewer />} />
         <Route path="/track-order" element={<OrderTracking />} />
         <Route path="/login" element={<AuthPage />} />
         <Route path="/verify" element={<VerifyPage />} />
