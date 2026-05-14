@@ -12,60 +12,6 @@ function getDb(): Firestore | null {
 }
 
 // ============================================
-// EOD (End of Day) Reset
-// ============================================
-
-export async function runEODReset(): Promise<{ visitorsDeleted: number; ordersArchived: number }> {
-  const database = getDb();
-  if (!database) return { visitorsDeleted: 0, ordersArchived: 0 };
-
-  let visitorsDeleted = 0;
-  let ordersArchived = 0;
-
-  // 1. Delete old visitor sessions (older than 24h)
-  try {
-    const dayAgo = new Date(Date.now() - 86400000).toISOString();
-    const visitorSnap = await getDocs(collection(database, 'visitors'));
-    const batch = writeBatch(database);
-    visitorSnap.forEach(d => {
-      const data = d.data();
-      if (data.entryTime && data.entryTime < dayAgo) {
-        batch.delete(doc(database, 'visitors', d.id));
-        visitorsDeleted++;
-      }
-    });
-    await batch.commit();
-  } catch (e) { console.error('[EOD] Visitor cleanup failed:', e); }
-
-  // 2. Mark old delivered/cancelled orders as "archived" (older than 30 days)
-  try {
-    const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString();
-    const ordersSnap = await getDocs(collection(database, ORDERS_COLLECTION));
-    const batch = writeBatch(database);
-    ordersSnap.forEach(d => {
-      const data = d.data() as Order;
-      if ((data.status === 'delivered' || data.status === 'cancelled') && data.date && data.date < monthAgo) {
-        batch.update(doc(database, ORDERS_COLLECTION, d.id), { archived: true });
-        ordersArchived++;
-      }
-    });
-    await batch.commit();
-  } catch (e) { console.error('[EOD] Order archive failed:', e); }
-
-  return { visitorsDeleted, ordersArchived };
-}
-
-export async function clearAllVisitorSessions(): Promise<number> {
-  const database = getDb();
-  if (!database) return 0;
-  const snap = await getDocs(collection(database, 'visitors'));
-  const batch = writeBatch(database);
-  snap.forEach(d => { batch.delete(doc(database, 'visitors', d.id)); });
-  await batch.commit();
-  return snap.size;
-}
-
-// ============================================
 // PRODUCTS
 // ============================================
 const PRODUCTS_COLLECTION = 'products';
@@ -165,6 +111,7 @@ export interface Order {
   deviceId?: string;
   userId?: string | null;
   createdAt?: Timestamp;
+  archived?: boolean;
 }
 
 export async function saveOrderToFirestore(order: Order) {
@@ -197,6 +144,44 @@ export async function updateOrderStatus(id: string, status: Order['status']) {
   const database = getDb();
   if (!database) return;
   await updateDoc(doc(database, ORDERS_COLLECTION, id), { status });
+}
+
+export async function archiveOrder(id: string) {
+  const database = getDb();
+  if (!database) return;
+  await updateDoc(doc(database, ORDERS_COLLECTION, id), { archived: true });
+}
+
+export async function unarchiveOrder(id: string) {
+  const database = getDb();
+  if (!database) return;
+  await updateDoc(doc(database, ORDERS_COLLECTION, id), { archived: false });
+}
+
+export function subscribeToActiveOrders(callback: (orders: Order[]) => void) {
+  const database = getDb();
+  if (!database) return () => {};
+  // Query non-archived orders - use a simple query and filter client-side
+  // to avoid needing a composite index
+  const q = query(collection(database, ORDERS_COLLECTION), orderBy('createdAt', 'desc'));
+  return onSnapshot(q, snap => {
+    const orders = snap.docs
+      .map(d => ({ ...d.data(), id: d.id } as Order))
+      .filter(o => !o.archived);
+    callback(orders);
+  });
+}
+
+export function subscribeToArchivedOrders(callback: (orders: Order[]) => void) {
+  const database = getDb();
+  if (!database) return () => {};
+  const q = query(collection(database, ORDERS_COLLECTION), orderBy('createdAt', 'desc'));
+  return onSnapshot(q, snap => {
+    const orders = snap.docs
+      .map(d => ({ ...d.data(), id: d.id } as Order))
+      .filter(o => o.archived);
+    callback(orders);
+  });
 }
 
 export async function loadOrdersByDeviceId(deviceId: string): Promise<Order[]> {
@@ -293,6 +278,62 @@ export async function deleteConsentLogFromFirestore(id: string) {
   const database = getDb();
   if (!database) return;
   await deleteDoc(doc(database, CONSENTS_COLLECTION, id));
+}
+
+// ============================================
+// EOD (End of Day) Reset
+// ============================================
+
+export async function runEODReset(): Promise<{ visitorsDeleted: number; ordersArchived: number }> {
+  const database = getDb();
+  if (!database) return { visitorsDeleted: 0, ordersArchived: 0 };
+
+  let visitorsDeleted = 0;
+  let ordersArchived = 0;
+
+  // 1. Delete old visitor sessions (older than 24h)
+  try {
+    const dayAgo = Date.now() - 86400000;
+    const visitorSnap = await getDocs(collection(database, 'visitors'));
+    const batch = writeBatch(database);
+    visitorSnap.forEach(d => {
+      const data = d.data();
+      const entryTime = data.entryTime ? new Date(data.entryTime).getTime() : 0;
+      if (entryTime && entryTime < dayAgo) {
+        batch.delete(doc(database, 'visitors', d.id));
+        visitorsDeleted++;
+      }
+    });
+    if (visitorsDeleted > 0) await batch.commit();
+  } catch (e) { console.error('[EOD] Visitor cleanup failed:', e); }
+
+  // 2. Auto-archive old delivered/cancelled orders (older than 30 days)
+  try {
+    const monthAgo = Date.now() - 30 * 86400000;
+    const ordersSnap = await getDocs(collection(database, ORDERS_COLLECTION));
+    const batch = writeBatch(database);
+    ordersSnap.forEach(d => {
+      const data = d.data() as Order;
+      const orderDate = data.date ? new Date(data.date).getTime() : 0;
+      if ((data.status === 'delivered' || data.status === 'cancelled') && orderDate && orderDate < monthAgo && !data.archived) {
+        batch.update(doc(database, ORDERS_COLLECTION, d.id), { archived: true });
+        ordersArchived++;
+      }
+    });
+    if (ordersArchived > 0) await batch.commit();
+  } catch (e) { console.error('[EOD] Order archive failed:', e); }
+
+  return { visitorsDeleted, ordersArchived };
+}
+
+export async function clearAllVisitorSessions(): Promise<number> {
+  const database = getDb();
+  if (!database) return 0;
+  const snap = await getDocs(collection(database, 'visitors'));
+  const batch = writeBatch(database);
+  snap.forEach(d => { batch.delete(doc(database, 'visitors', d.id)); });
+  await batch.commit();
+  return snap.size;
 }
 
 // ============================================

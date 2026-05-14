@@ -382,9 +382,10 @@ export default function AdminPanel() {
   );
 }
 
-/* Orders sub-component - now reads from Firestore via context */
-function OrdersTab({ orders }: { orders: Array<{ id: string; date: string; items: { id: string; name: string; qty: number; price: number }[]; total: number; crypto: string; txHash: string; status: string; shipping?: { name: string; email: string; address: string; city: string; zip: string; country: string } }> }) {
+/* Orders sub-component - Active + Completed tabs */
+function OrdersTab({ orders }: { orders: Array<{ id: string; date: string; items: { id: string; name: string; qty: number; price: number }[]; total: number; crypto: string; txHash: string; status: string; archived?: boolean; shipping?: { name: string; email: string; address: string; city: string; zip: string; country: string } }> }) {
   const { updateOrderStatus, showToast } = useApp();
+  const [subTab, setSubTab] = useState<'active' | 'completed'>('active');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -394,7 +395,47 @@ function OrdersTab({ orders }: { orders: Array<{ id: string; date: string; items
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const activeOrders = orders.filter(o => !o.archived && o.status !== 'delivered' && o.status !== 'cancelled');
+  const completedOrders = orders.filter(o => o.archived || o.status === 'delivered' || o.status === 'cancelled');
+  const displayOrders = subTab === 'active' ? activeOrders : completedOrders;
   const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
+
+  const handleStatusChange = async (orderId: string, newStatus: import('@/firebase/services').Order['status']) => {
+    try {
+      await updateOrderStatus(orderId, newStatus);
+      showToast(`Order ${orderId} \u2192 ${newStatus}`, '\u2705');
+      if (newStatus === 'delivered' || newStatus === 'cancelled') {
+        const { archiveOrder } = await import('@/firebase/services');
+        await archiveOrder(orderId);
+        showToast(`Order ${orderId} moved to Completed`, '\uD83D\uDCC1');
+      }
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
+        notifyOrderStatusUpdate({ id: orderId, status: newStatus, total: order.total, crypto: order.crypto, shipping: order.shipping });
+      }
+    } catch (err: any) {
+      console.error('Status update failed:', err);
+      showToast('Failed: Check Firestore rules', '\u274C');
+    }
+  };
+
+  const handleUnarchive = async (orderId: string) => {
+    try {
+      const { unarchiveOrder } = await import('@/firebase/services');
+      await unarchiveOrder(orderId);
+      showToast(`Order ${orderId} restored to Active`, '\uD83D\uDD04');
+    } catch {
+      showToast('Failed to restore order', '\u274C');
+    }
+  };
+
+  const statusColors: Record<string, string> = {
+    processing: 'var(--accent)',
+    confirmed: 'var(--success)',
+    shipped: '#8b5cf6',
+    delivered: '#22c55e',
+    cancelled: '#ef4444',
+  };
 
   return (
     <div>
@@ -402,34 +443,32 @@ function OrdersTab({ orders }: { orders: Array<{ id: string; date: string; items
         <div>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
             <ClipboardList size={16} style={{ display: 'inline', marginRight: '8px', color: 'var(--accent)' }} />
-            Order History
+            Orders
           </h3>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            All orders synced from Firebase. {orders.length} order{orders.length !== 1 ? 's' : ''} total.
+            {activeOrders.length} active &middot; {completedOrders.length} completed &middot; ${totalRevenue.toFixed(2)} total
           </p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => {
-            const data = JSON.stringify(orders, null, 2);
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `orders_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-          }} className="cursor-pointer flex items-center gap-1" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', padding: '8px 14px', borderRadius: '8px', fontSize: '0.8rem' }}>
-            <Download size={14} /> Export
-          </button>
-        </div>
+        <button onClick={() => {
+          const data = JSON.stringify(orders, null, 2);
+          const blob = new Blob([data], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `orders_${new Date().toISOString().split('T')[0]}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }} className="cursor-pointer flex items-center gap-1" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', padding: '8px 14px', borderRadius: '8px', fontSize: '0.8rem' }}>
+          <Download size={14} /> Export
+        </button>
       </div>
 
       <div className="grid grid-cols-4 gap-2 mb-4">
         {[
-          { label: 'Orders', value: orders.length, icon: <Package size={14} /> },
+          { label: 'Active', value: activeOrders.length, icon: <Package size={14} /> },
+          { label: 'Completed', value: completedOrders.length, icon: <CheckCircle2 size={14} /> },
           { label: 'Revenue', value: `$${totalRevenue.toFixed(2)}`, icon: <CircleDollarSign size={14} /> },
           { label: 'Today', value: orders.filter(o => new Date(o.date).toDateString() === new Date().toDateString()).length, icon: <Clock size={14} /> },
-          { label: 'This Week', value: orders.filter(o => { const d = new Date(o.date); const now = new Date(); return (now.getTime() - d.getTime()) < 7 * 24 * 60 * 60 * 1000; }).length, icon: <ClipboardList size={14} /> },
         ].map(({ label, value, icon }) => (
           <div key={label} style={{ background: 'var(--bg)', borderRadius: '10px', padding: '10px', textAlign: 'center' }}>
             <div style={{ color: 'var(--accent)', marginBottom: '2px' }}>{icon}</div>
@@ -439,111 +478,83 @@ function OrdersTab({ orders }: { orders: Array<{ id: string; date: string; items
         ))}
       </div>
 
-      {orders.length === 0 ? (
+      <div className="flex gap-2 mb-4">
+        {(['active', 'completed'] as const).map(t => (
+          <button key={t} onClick={() => setSubTab(t)} className="cursor-pointer border-none capitalize"
+            style={{ padding: '8px 20px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700, background: subTab === t ? 'var(--accent)' : 'var(--bg)', color: subTab === t ? '#fff' : 'var(--text-muted)', transition: 'all 0.2s' }}>
+            {t === 'active' ? 'Active Orders' : 'Completed Orders'} ({t === 'active' ? activeOrders.length : completedOrders.length})
+          </button>
+        ))}
+      </div>
+
+      {displayOrders.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
           <Package size={40} style={{ marginBottom: '12px', opacity: 0.5 }} />
-          <p>No orders yet.</p>
+          <p>No {subTab} orders.</p>
         </div>
       ) : (
         <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
-          {orders.map((order) => {
+          {displayOrders.map((order) => {
             const isExpanded = expandedId === order.id;
-            const statusColors: Record<string, string> = {
-              processing: 'var(--accent)',
-              confirmed: 'var(--success)',
-              shipped: '#8b5cf6',
-              delivered: '#22c55e',
-              cancelled: '#ef4444',
-            };
             return (
               <div key={order.id} style={{ background: 'var(--bg)', borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', border: '1px solid var(--border)' }}>
-                {/* Header row */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Package size={14} style={{ color: 'var(--accent)' }} />
                     <span style={{ fontWeight: 700, fontSize: '0.85rem', fontFamily: 'monospace' }}>{order.id}</span>
-                    {/* Status badge */}
                     <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', background: statusColors[order.status] + '20', color: statusColors[order.status], padding: '3px 10px', borderRadius: '20px' }}>
                       {order.status}
                     </span>
+                    {order.archived && (
+                      <span style={{ fontSize: '0.6rem', fontWeight: 700, background: 'rgba(139,92,246,0.15)', color: '#8b5cf6', padding: '2px 8px', borderRadius: '4px' }}>Archived</span>
+                    )}
                   </div>
                   <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{new Date(order.date).toLocaleDateString()}</span>
                 </div>
 
-                {/* Items */}
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '10px' }}>
                   {order.items.map(i => `${i.name} x${i.qty}`).join(', ')}
                 </div>
 
-                {/* Status controls + actions */}
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-2">
-                    {/* Status dropdown */}
-                    <select
-                      value={order.status}
-                      onChange={async (e) => {
-                        const newStatus = e.target.value as import('@/firebase/services').Order['status'];
-                        try {
-                          await updateOrderStatus(order.id, newStatus);
-                          showToast(`Order ${order.id} \u2192 ${newStatus}`, '\u2705');
-                          // Send Discord notification
-                          notifyOrderStatusUpdate({
-                            id: order.id,
-                            status: newStatus,
-                            total: order.total,
-                            crypto: order.crypto,
-                            shipping: order.shipping,
-                          });
-                        } catch (err: any) {
-                          console.error('Status update failed:', err);
-                          showToast('Failed: Check Firestore rules allow updates', '\u274C');
-                        }
-                      }}
-                      className="cursor-pointer outline-none"
-                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 10px', color: 'var(--text)', fontSize: '0.75rem', fontWeight: 600 }}
-                    >
-                      <option value="processing">Processing</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="shipped">Shipped</option>
-                      <option value="delivered">Delivered</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                    {/* Ping Discord button */}
-                    <button
-                      onClick={async () => {
-                        const ok = await notifyNewOrder({
-                          id: order.id,
-                          total: order.total,
-                          crypto: order.crypto,
-                          items: order.items.map(i => ({ name: i.name, qty: i.qty })),
-                          shipping: order.shipping || { name: '', email: '' },
-                        });
-                        showToast(ok ? 'Order pinged to Discord!' : 'Webhook not configured. Set URL in Discord tab.', ok ? '\uD83D\uDCE4' : '\u274C');
-                      }}
-                      className="cursor-pointer flex items-center gap-1 transition-all duration-300"
-                      style={{ background: 'rgba(88,101,242,0.1)', border: '1px solid rgba(88,101,242,0.3)', color: '#5865F2', padding: '6px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 600 }}
-                    >
-                      <Bell size={12} /> Ping Discord
+                    {subTab === 'active' ? (
+                      <select value={order.status} onChange={(e) => handleStatusChange(order.id, e.target.value as import('@/firebase/services').Order['status'])}
+                        className="cursor-pointer outline-none"
+                        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 10px', color: 'var(--text)', fontSize: '0.75rem', fontWeight: 600 }}>
+                        <option value="processing">Processing</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    ) : (
+                      <button onClick={() => handleUnarchive(order.id)}
+                        className="cursor-pointer"
+                        style={{ background: 'var(--accent)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 700 }}>
+                        Restore to Active
+                      </button>
+                    )}
+                    <button onClick={async () => {
+                      const ok = await notifyNewOrder({ id: order.id, total: order.total, crypto: order.crypto, items: order.items.map(i => ({ name: i.name, qty: i.qty })), shipping: order.shipping || { name: '', email: '' } });
+                      showToast(ok ? 'Order pinged to Discord!' : 'Webhook not configured.', ok ? '\uD83D\uDCE4' : '\u274C');
+                    }} className="cursor-pointer flex items-center gap-1"
+                      style={{ background: 'rgba(88,101,242,0.1)', border: '1px solid rgba(88,101,242,0.3)', color: '#5865F2', padding: '6px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 600 }}>
+                      <Bell size={12} /> Ping
                     </button>
-                    <button
-                      onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                      className="cursor-pointer flex items-center gap-1"
-                      style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '6px 10px', borderRadius: '8px', fontSize: '0.7rem' }}
-                    >
+                    <button onClick={() => setExpandedId(isExpanded ? null : order.id)} className="cursor-pointer flex items-center gap-1"
+                      style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '6px 10px', borderRadius: '8px', fontSize: '0.7rem' }}>
                       {isExpanded ? 'Less' : 'Details'} <ChevronDown size={12} style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      <button onClick={() => copyTx(order.txHash, order.id)} className="bg-transparent border-none cursor-pointer" style={{ color: copiedId === order.id ? 'var(--success)' : 'var(--accent)', fontSize: '0.7rem' }}>
-                        {copiedId === order.id ? 'Copied!' : <Copy size={10} style={{ display: 'inline' }} />}
-                      </button>
-                    </span>
+                    <button onClick={() => copyTx(order.txHash, order.id)} className="bg-transparent border-none cursor-pointer" style={{ color: copiedId === order.id ? 'var(--success)' : 'var(--accent)', fontSize: '0.7rem' }}>
+                      {copiedId === order.id ? 'Copied!' : <Copy size={10} style={{ display: 'inline' }} />}
+                    </button>
                     <span style={{ fontWeight: 800, color: 'var(--accent)', fontSize: '0.95rem' }}>${order.total.toFixed(2)}</span>
                   </div>
                 </div>
 
-                {/* Expanded details */}
                 {isExpanded && (
                   <div style={{ background: 'rgba(10,22,40,0.5)', borderRadius: '10px', padding: '14px', marginTop: '12px', fontSize: '0.8rem' }}>
                     <div className="grid grid-cols-2 gap-3 mb-3">
@@ -577,6 +588,7 @@ function OrdersTab({ orders }: { orders: Array<{ id: string; date: string; items
     </div>
   );
 }
+
 
 /* Customer Logs sub-component - now reads from Firestore via context */
 function CustomerLogsTab({
