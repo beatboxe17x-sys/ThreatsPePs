@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import HeroSection from '@/sections/HeroSection';
 import QualityStats from '@/sections/QualityStats';
 import TrustBadges from '@/sections/TrustBadges';
-import COABanner from '@/sections/COABanner';
 import FeaturedProducts from '@/sections/FeaturedProducts';
 import TrustPoints from '@/sections/TrustPoints';
 import FeaturesSection from '@/sections/FeaturesSection';
@@ -35,7 +34,6 @@ export default function HomePage() {
       <HeroSection />
       <QualityStats />
       <TrustBadges />
-      <COABanner />
       <FeaturedProducts />
       <TrustPoints />
       <FeaturesSection />
