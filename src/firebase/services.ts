@@ -12,6 +12,60 @@ function getDb(): Firestore | null {
 }
 
 // ============================================
+// EOD (End of Day) Reset
+// ============================================
+
+export async function runEODReset(): Promise<{ visitorsDeleted: number; ordersArchived: number }> {
+  const database = getDb();
+  if (!database) return { visitorsDeleted: 0, ordersArchived: 0 };
+
+  let visitorsDeleted = 0;
+  let ordersArchived = 0;
+
+  // 1. Delete old visitor sessions (older than 24h)
+  try {
+    const dayAgo = new Date(Date.now() - 86400000).toISOString();
+    const visitorSnap = await getDocs(collection(database, 'visitors'));
+    const batch = writeBatch(database);
+    visitorSnap.forEach(d => {
+      const data = d.data();
+      if (data.entryTime && data.entryTime < dayAgo) {
+        batch.delete(doc(database, 'visitors', d.id));
+        visitorsDeleted++;
+      }
+    });
+    await batch.commit();
+  } catch (e) { console.error('[EOD] Visitor cleanup failed:', e); }
+
+  // 2. Mark old delivered/cancelled orders as "archived" (older than 30 days)
+  try {
+    const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+    const ordersSnap = await getDocs(collection(database, ORDERS_COLLECTION));
+    const batch = writeBatch(database);
+    ordersSnap.forEach(d => {
+      const data = d.data() as Order;
+      if ((data.status === 'delivered' || data.status === 'cancelled') && data.date && data.date < monthAgo) {
+        batch.update(doc(database, ORDERS_COLLECTION, d.id), { archived: true });
+        ordersArchived++;
+      }
+    });
+    await batch.commit();
+  } catch (e) { console.error('[EOD] Order archive failed:', e); }
+
+  return { visitorsDeleted, ordersArchived };
+}
+
+export async function clearAllVisitorSessions(): Promise<number> {
+  const database = getDb();
+  if (!database) return 0;
+  const snap = await getDocs(collection(database, 'visitors'));
+  const batch = writeBatch(database);
+  snap.forEach(d => { batch.delete(doc(database, 'visitors', d.id)); });
+  await batch.commit();
+  return snap.size;
+}
+
+// ============================================
 // PRODUCTS
 // ============================================
 const PRODUCTS_COLLECTION = 'products';

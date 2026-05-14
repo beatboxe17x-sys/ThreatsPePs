@@ -4,7 +4,8 @@ import { DEFAULT_PRODUCTS, DEFAULT_CRYPTO_ADDRESSES } from '@/types';
 import { usePromoCode, type PromoState } from '@/hooks/usePromoCode';
 import {
   subscribeToProducts, subscribeToCryptoAddresses, subscribeToOrders, subscribeToConsentLogs,
-  saveAllProductsToFirestore, saveCryptoAddressesToFirestore, saveOrderToFirestore,
+  saveAllProductsToFirestore, saveProductToFirestore, deleteProductFromFirestore,
+  saveCryptoAddressesToFirestore, saveOrderToFirestore,
   saveConsentLogToFirestore, updateConsentLogStatus, deleteConsentLogFromFirestore,
   updateOrderStatus as updateOrderStatusFirestore,
   loadProductsFromFirestore, loadCryptoAddressesFromFirestore,
@@ -33,11 +34,13 @@ interface AppContextType {
   closeCheckout: () => void;
   openAdmin: () => void;
   closeAdmin: () => void;
-  adminLogin: (email: string, pass: string) => boolean;
+  adminLogin: (pass: string) => boolean;
   adminLogout: () => void;
   showToast: (message: string, icon?: string) => void;
   selectCrypto: (crypto: Crypto) => void;
   saveProducts: (products: Record<string, Product>) => void;
+  saveProduct: (id: string, product: Product) => Promise<boolean>;
+  deleteProduct: (id: string) => Promise<boolean>;
   saveCryptoAddresses: (addresses: Record<Crypto, string>) => void;
   saveOrder: (order: Order) => Promise<void>;
   saveConsentLog: (log: ConsentLog) => Promise<void>;
@@ -196,9 +199,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.body.style.overflow = '';
   }, []);
 
-  // Simple password login - no Firebase Auth needed
-  const adminLogin = useCallback((email: string, pass: string): boolean => {
-    // Accept ANY email with the correct password
+  // Simple password login - password only
+  const adminLogin = useCallback((pass: string): boolean => {
     if (pass === 'ngadmin2024') {
       setIsAdminLoggedIn(true);
       sessionStorage.setItem('ng_admin', 'true');
@@ -228,6 +230,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProducts(newProducts);
     localStorage.setItem('ng_products', JSON.stringify(newProducts));
     try { await saveAllProductsToFirestore(newProducts); } catch (_) {}
+  }, []);
+
+  const saveProduct = useCallback(async (id: string, product: Product): Promise<boolean> => {
+    try {
+      await saveProductToFirestore(id, product);
+      // Update local state AFTER Firestore confirms
+      setProducts(prev => {
+        const updated = { ...prev, [id]: product };
+        localStorage.setItem('ng_products', JSON.stringify(updated));
+        return updated;
+      });
+      return true;
+    } catch (err) {
+      console.error('[saveProduct] Failed:', err);
+      return false;
+    }
+  }, []);
+
+  const deleteProduct = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      await deleteProductFromFirestore(id);
+      // Update local state AFTER Firestore confirms deletion
+      setProducts(prev => {
+        const updated = { ...prev };
+        delete updated[id];
+        localStorage.setItem('ng_products', JSON.stringify(updated));
+        return updated;
+      });
+      return true;
+    } catch (err) {
+      console.error('[deleteProduct] Failed:', err);
+      return false;
+    }
   }, []);
 
   const saveCryptoAddresses = useCallback(async (addresses: Record<Crypto, string>) => {
@@ -293,7 +328,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addToCart, removeFromCart, updateQty, openCart, closeCart,
         openCheckout, closeCheckout, openAdmin, closeAdmin,
         adminLogin, adminLogout, showToast, selectCrypto,
-        saveProducts, saveCryptoAddresses, saveOrder, saveConsentLog,
+        saveProducts, saveProduct, deleteProduct, saveCryptoAddresses, saveOrder, saveConsentLog,
         updateOrderStatus, updateConsentStatus, deleteConsentLog, refreshOrders, refreshConsentLogs,
         promo: promoHook.promo,
         applyPromoCode: promoHook.applyPromoCode,

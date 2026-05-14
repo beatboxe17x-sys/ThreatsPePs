@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '@/hooks/useAppContext';
-import { X, Download, Upload, Save, Users, CheckCircle2, ClipboardList, Package, Copy, CircleDollarSign, Clock, ChevronDown, MapPin, Mail, MessageCircle, Settings, Check, Eye, Bell, ExternalLink, Trash2, Shield, ToggleLeft, ToggleRight, BarChart3 } from 'lucide-react';
+import { X, Download, Upload, Save, Users, CheckCircle2, ClipboardList, Package, Copy, CircleDollarSign, Clock, ChevronDown, MapPin, Mail, MessageCircle, Settings, Check, Eye, Bell, ExternalLink, Trash2, Shield, ToggleLeft, ToggleRight, BarChart3, RotateCcw } from 'lucide-react';
 import { notifyOrderStatusUpdate, notifyNewOrder, getWebhookUrl, setWebhookUrl, loadWebhookUrl, hasWebhook } from '@/discord/webhook';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import { subscribeToWebhookUrl } from '@/firebase/webhookSettings';
@@ -14,11 +14,10 @@ export default function AdminPanel() {
   const {
     products, cryptoAddresses, orders, consentLogs,
     isAdminOpen, closeAdmin, isAdminLoggedIn,
-    adminLogin, adminLogout, saveProducts, saveCryptoAddresses,
+    adminLogin, adminLogout, saveProducts, saveProduct, deleteProduct, saveCryptoAddresses,
     showToast, updateConsentStatus, deleteConsentLog,
   } = useApp();
 
-  const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
   const [loginError, setLoginError] = useState('');
   const [tab, setTab] = useState<AdminTab>('products');
@@ -34,6 +33,7 @@ export default function AdminPanel() {
 
   // Crypto addresses form
   const [editCrypto, setEditCrypto] = useState<Record<Crypto, string>>({ ...cryptoAddresses });
+  const [eodLoading, setEodLoading] = useState(false);
 
   useEffect(() => {
     if (isAdminOpen) {
@@ -41,13 +41,44 @@ export default function AdminPanel() {
     }
   }, [isAdminOpen, cryptoAddresses]);
 
+  const handleEODReset = async () => {
+    if (!confirm('Run End of Day reset?\n\nThis will:\n- Delete old visitor sessions (24h+)\n- Archive old delivered/cancelled orders (30d+)\n- Reset daily tracking data\n\nContinue?')) return;
+    setEodLoading(true);
+    try {
+      const { runEODReset } = await import('@/firebase/services');
+      const result = await runEODReset();
+      showToast(`EOD Complete: ${result.visitorsDeleted} visitors cleaned, ${result.ordersArchived} orders archived`, '\u2705');
+    } catch (e) {
+      showToast('EOD reset failed', '\u274C');
+    } finally {
+      setEodLoading(false);
+    }
+  };
+
+  const handleClearAllVisitors = async () => {
+    if (!confirm('CLEAR ALL visitor sessions?\n\nThis removes ALL visitor data from Firebase.\n\nContinue?')) return;
+    setEodLoading(true);
+    try {
+      const { clearAllVisitorSessions } = await import('@/firebase/services');
+      const count = await clearAllVisitorSessions();
+      showToast(`Cleared ${count} visitor sessions`, '\u2705');
+    } catch (e) {
+      showToast('Failed to clear visitors', '\u274C');
+    } finally {
+      setEodLoading(false);
+    }
+  };
+
   const handleLogin = async () => {
     setLoginError('');
-    const ok = await adminLogin(email, pass);
+    const ok = await adminLogin(pass);
     if (!ok) {
-      // The useApp context will show a toast with the specific error
-      setLoginError('Login failed. Check the error message above or use admin/admin for fallback.');
+      setLoginError('Invalid password.');
     }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleLogin();
   };
 
   const resetProductForm = () => {
@@ -59,7 +90,7 @@ export default function AdminPanel() {
     setPId('');
   };
 
-  const handleSaveProduct = () => {
+  const handleSaveProduct = async () => {
     const id = editingId || pId.toLowerCase().replace(/\s+/g, '');
     const price = parseFloat(pPrice);
     if (!id || !pName || !price || !pImg) {
@@ -77,11 +108,14 @@ export default function AdminPanel() {
       highlights: existing?.highlights || [],
       coa: existing?.coa,
     };
-    const newProducts = { ...products, [id]: newProduct };
-    saveProducts(newProducts);
-    resetProductForm();
-    setSaveMsg(true);
-    setTimeout(() => setSaveMsg(false), 3000);
+    const ok = await saveProduct(id, newProduct);
+    if (ok) {
+      resetProductForm();
+      setSaveMsg(true);
+      setTimeout(() => setSaveMsg(false), 3000);
+    } else {
+      showToast('Failed to save product - check Firestore rules', '\u274C');
+    }
   };
 
   const handleEditProduct = (id: string) => {
@@ -95,20 +129,23 @@ export default function AdminPanel() {
     setPId(id);
   };
 
-  const handleDeleteProduct = (id: string) => {
+  const handleDeleteProduct = async (id: string) => {
     if (!confirm(`Delete ${products[id]?.name}?`)) return;
-    const newProducts = { ...products };
-    delete newProducts[id];
-    saveProducts(newProducts);
+    const ok = await deleteProduct(id);
+    if (ok) {
+      showToast(`${products[id]?.name || 'Product'} deleted from site`, '\u2705');
+    } else {
+      showToast('Delete failed - check Firestore rules', '\u274C');
+    }
   };
 
-  const handleCloneProduct = (id: string) => {
+  const handleCloneProduct = async (id: string) => {
     const p = products[id];
     if (!p) return;
     const newId = id + '_copy' + Date.now();
-    const newProducts = { ...products, [newId]: { ...p } };
-    saveProducts(newProducts);
-    showToast('Product cloned!', '\uD83D\uDCCB');
+    const ok = await saveProduct(newId, { ...p });
+    if (ok) showToast('Product cloned!', '\uD83D\uDCCB');
+    else showToast('Clone failed - check Firestore rules', '\u274C');
   };
 
   const handleExportProducts = () => {
@@ -150,27 +187,17 @@ export default function AdminPanel() {
     <div className="admin-overlay active" onClick={(e) => { if (e.target === e.currentTarget) closeAdmin(); }}>
       {/* Login Screen */}
       {!isAdminLoggedIn && (
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '20px', padding: '40px', width: '360px', textAlign: 'center' }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '20px', padding: '40px', width: '320px', textAlign: 'center' }}>
           <h2 className="mb-2" style={{ fontSize: '1.5rem', fontWeight: 800 }}>Admin Panel</h2>
-          <p className="mb-6" style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Any email + admin password</p>
-          <div className="mb-3">
-            <input
-              type="text"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Any email"
-              className="w-full outline-none transition-colors duration-300"
-              style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 16px', color: 'var(--text)', fontSize: '0.9rem', fontFamily: 'Inter, sans-serif', textAlign: 'center' }}
-              onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-              onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
-            />
-          </div>
+          <p className="mb-6" style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Enter admin password</p>
           <div className="mb-4">
             <input
               type="password"
               value={pass}
               onChange={(e) => setPass(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Password"
+              autoFocus
               className="w-full outline-none transition-colors duration-300"
               style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 16px', color: 'var(--text)', fontSize: '0.9rem', fontFamily: 'Inter, sans-serif', textAlign: 'center' }}
               onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
@@ -220,6 +247,15 @@ export default function AdminPanel() {
                 <Upload size={14} /> Import JSON
                 <input type="file" accept=".json" onChange={(e) => handleImportProducts(e.target)} style={{ display: 'none' }} />
               </label>
+              <button
+                onClick={handleEODReset}
+                disabled={eodLoading}
+                className="flex items-center gap-1 cursor-pointer transition-all duration-300"
+                style={{ background: 'var(--bg)', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '8px 16px', borderRadius: '8px', fontSize: '0.8rem' }}
+                title="End of Day - Reset tracking data"
+              >
+                <RotateCcw size={14} /> {eodLoading ? '...' : 'EOD'}
+              </button>
               <button onClick={() => { adminLogout(); }} className="cursor-pointer ml-2" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--accent)', padding: '8px 16px', borderRadius: '8px', fontSize: '0.8rem' }}>
                 Logout
               </button>
