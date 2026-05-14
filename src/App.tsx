@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
+// v5 - clean build
 import { AppProvider, useApp } from '@/hooks/useAppContext';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { startVisitorSession, trackPageView } from '@/firebase/visitor';
