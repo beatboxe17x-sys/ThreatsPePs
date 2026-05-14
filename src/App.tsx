@@ -24,6 +24,7 @@ import ProfilePage from '@/pages/ProfilePage';
 import VerifyPage from '@/pages/VerifyPage';
 import AffiliatePage from '@/pages/AffiliatePage';
 import VialViewer from '@/pages/VialViewer';
+import CryptoTracker from '@/pages/CryptoTracker';
 import LiveChat from '@/components/LiveChat';
 
 function ScrollToTop() {
@@ -132,6 +133,7 @@ function AppContent() {
         <Route path="/verify" element={<VerifyPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/affiliate" element={<AffiliatePage />} />
+<Route path="/crypto-tracker" element={<CryptoTracker />} />
       </Routes>
       <CartSidebar />
       <CheckoutModal />
