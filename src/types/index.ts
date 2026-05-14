@@ -141,7 +141,7 @@ export const DEFAULT_PRODUCTS: Record<string, Product> = {
   glp3rt: {
     name: 'GLP-3 RT',
     price: 89.99,
-    img: '/images/glp-3rt.png?v=5',
+    img: '/images/glp3rt.png?v=5',
     mg: '20 MG',
     shopify: 'https://nextgen-research-2.myshopify.com/products/glp-3-rt-20-mg?variant=48566637789411',
     description: 'Next-generation GLP-3 receptor-targeted peptide for advanced metabolic, appetite regulation, and weight management research.',
