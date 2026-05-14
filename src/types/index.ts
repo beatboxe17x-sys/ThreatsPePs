@@ -7,6 +7,18 @@ export interface Product {
   description: string;
   highlights: string[];
   coa?: string;
+  stock?: number;
+}
+
+export interface Review {
+  id: string;
+  stars: number;
+  quote: string;
+  initials: string;
+  name: string;
+  title: string;
+  approved: boolean;
+  createdAt: string;
 }
 
 export interface CartItem {

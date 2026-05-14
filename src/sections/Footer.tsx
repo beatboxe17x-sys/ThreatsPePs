@@ -1,9 +1,71 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MessageCircle, Twitter, Instagram, Mail, Shield, FileText, Beaker } from 'lucide-react';
+import { MessageCircle, Twitter, Instagram, Mail, Shield, FileText, Beaker, Lock, Truck, FlaskConical, Check, Send } from 'lucide-react';
 
 export default function Footer() {
+  const [email, setEmail] = useState('');
+  const [subscribed, setSubscribed] = useState(false);
+
+  const handleSubscribe = () => {
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+    localStorage.setItem('ng_newsletter_subscribed', email);
+    setSubscribed(true);
+  };
+
   return (
     <footer style={{ borderTop: '1px solid var(--border)' }}>
+      {/* Trust badges strip */}
+      <div style={{ borderBottom: '1px solid var(--border)', padding: '20px var(--container-pad)', background: 'var(--bg)' }}>
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { icon: <Lock size={16} />, label: 'SSL Secured', desc: '256-bit encryption' },
+              { icon: <FlaskConical size={16} />, label: '99%+ Purity', desc: 'HPLC verified' },
+              { icon: <Truck size={16} />, label: 'Same Day Ship', desc: 'Orders before 3pm EST' },
+              { icon: <Shield size={16} />, label: 'COA Included', desc: 'With every order' },
+            ].map((badge) => (
+              <div key={badge.label} className="flex items-center gap-3" style={{ padding: '10px' }}>
+                <div className="flex items-center justify-center flex-shrink-0"
+                  style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(56,138,177,0.08)', color: 'var(--accent)' }}>
+                  {badge.icon}
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700 }}>{badge.label}</div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{badge.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Newsletter strip */}
+      <div style={{ borderBottom: '1px solid var(--border)', padding: '32px var(--container-pad', background: 'var(--bg-light)' }}>
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div>
+            <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '4px' }}>Stay in the Loop</h4>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Get deals, new products, and research updates.</p>
+          </div>
+          {subscribed ? (
+            <div className="flex items-center gap-2" style={{ color: '#22c55e', fontWeight: 700 }}>
+              <Check size={16} /> Subscribed!
+            </div>
+          ) : (
+            <div className="flex gap-2 w-full md:w-auto">
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSubscribe()}
+                placeholder="Your email" className="outline-none flex-1 md:w-64"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 14px', color: 'var(--text)', fontSize: '0.85rem' }} />
+              <button onClick={handleSubscribe}
+                className="cursor-pointer border-none flex items-center gap-2"
+                style={{ background: 'var(--accent)', color: '#fff', padding: '10px 18px', borderRadius: '10px', fontWeight: 700, fontSize: '0.8rem' }}>
+                <Send size={14} /> Subscribe
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Main footer */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
@@ -37,6 +99,7 @@ export default function Footer() {
             <ul className="flex flex-col gap-2 list-none" style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
               <li><a href="/" className="no-underline transition-colors duration-300" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>All Products</a></li>
               <li><Link to="/track-order" className="no-underline transition-colors duration-300" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>Track Order</Link></li>
+              <li><Link to="/crypto-tracker" className="no-underline transition-colors duration-300" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>Track Crypto</Link></li>
               <li><Link to="/why-us" className="no-underline transition-colors duration-300" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>Why Us</Link></li>
               <li><Link to="/faq" className="no-underline transition-colors duration-300" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>FAQ</Link></li>
               <li><Link to="/affiliate" className="no-underline transition-colors duration-300" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>Affiliate Program</Link></li>
@@ -50,25 +113,21 @@ export default function Footer() {
               <li className="flex items-center gap-2"><Shield size={14} /> HPLC Verified</li>
               <li className="flex items-center gap-2"><FileText size={14} /> COA Included</li>
               <li className="flex items-center gap-2"><Beaker size={14} /> Research Only</li>
-              <li><a href="mailto:atlasecomsales@gmail.com" className="no-underline transition-colors duration-300" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>Contact Us</a></li>
+              <li><Link to="/contact" className="no-underline transition-colors duration-300" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>Contact Us</Link></li>
             </ul>
           </div>
 
-          {/* Discord Community */}
+          {/* Community */}
           <div>
             <h4 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '16px' }}>Community</h4>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: '16px' }}>
               Join our Discord for order updates, exclusive deals, and research discussions.
             </p>
-            <a
-              href="https://discord.gg/4hENXJWUax"
-              target="_blank"
-              rel="noopener noreferrer"
+            <a href="https://discord.gg/4hENXJWUax" target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 no-underline transition-all duration-300"
               style={{ background: '#5865F2', color: '#fff', padding: '10px 20px', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 600 }}
               onMouseEnter={e => { e.currentTarget.style.background = '#4752C4'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#5865F2'; }}
-            >
+              onMouseLeave={e => { e.currentTarget.style.background = '#5865F2'; }}>
               <MessageCircle size={16} /> Join Discord
             </a>
           </div>

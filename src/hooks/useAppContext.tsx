@@ -14,6 +14,7 @@ import {
 
 interface AppContextType {
   cart: CartItem[];
+  wishlist: string[];
   products: Record<string, Product>;
   cryptoAddresses: Record<Crypto, string>;
   orders: Order[];
@@ -28,6 +29,8 @@ interface AppContextType {
   addToCart: (id: string) => void;
   removeFromCart: (id: string) => void;
   updateQty: (id: string, delta: number) => void;
+  toggleWishlist: (id: string) => void;
+  isWishlisted: (id: string) => boolean;
   openCart: () => void;
   closeCart: () => void;
   openCheckout: () => void;
@@ -70,6 +73,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch { return []; }
   });
 
+  const [wishlist, setWishlist] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('ng_wishlist');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
   const [products, setProducts] = useState<Record<string, Product>>(DEFAULT_PRODUCTS);
   const [cryptoAddresses, setCryptoAddresses] = useState<Record<Crypto, string>>(DEFAULT_CRYPTO_ADDRESSES);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -101,6 +111,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('ng_cart', JSON.stringify(cart));
   }, [cart]);
+
+  // Wishlist persistence
+  useEffect(() => {
+    localStorage.setItem('ng_wishlist', JSON.stringify(wishlist));
+  }, [wishlist]);
 
   // Firestore subscriptions
   useEffect(() => {
@@ -226,6 +241,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedCrypto(crypto);
   }, []);
 
+  const toggleWishlist = useCallback((id: string) => {
+    setWishlist(prev => {
+      const updated = prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id];
+      localStorage.setItem('ng_wishlist', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const isWishlisted = useCallback((id: string) => wishlist.includes(id), [wishlist]);
+
   const saveProducts = useCallback(async (newProducts: Record<string, Product>) => {
     setProducts(newProducts);
     localStorage.setItem('ng_products', JSON.stringify(newProducts));
@@ -322,10 +347,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider
       value={{
-        cart, products, cryptoAddresses, orders, consentLogs,
+        cart, wishlist, products, cryptoAddresses, orders, consentLogs,
         isCartOpen, isCheckoutOpen, isAdminOpen, isAdminLoggedIn,
         toast, selectedCrypto,
-        addToCart, removeFromCart, updateQty, openCart, closeCart,
+        addToCart, removeFromCart, updateQty, toggleWishlist, isWishlisted, openCart, closeCart,
         openCheckout, closeCheckout, openAdmin, closeAdmin,
         adminLogin, adminLogout, showToast, selectCrypto,
         saveProducts, saveProduct, deleteProduct, saveCryptoAddresses, saveOrder, saveConsentLog,
